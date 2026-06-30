@@ -7,3 +7,5 @@ dist/
 view/public/pages/
 view/public/pages.json
 server/dist/
+.env
+.pi/agent/auth.json

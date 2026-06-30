@@ -1,0 +1,14 @@
+{
+  "providers": {
+    "ark": {
+      "baseUrl": "https://ark.cn-beijing.volces.com/api/coding",
+      "api": "anthropic-messages",
+      "models": [
+        {
+          "id": "ark-code-latest",
+          "contextWindow": 128000
+        }
+      ]
+    }
+  }
+}
