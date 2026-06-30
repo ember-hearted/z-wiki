@@ -1,1 +1,9 @@
 /.firecrawl
+node_modules/
+dist/
+*.tsbuildinfo
+.pi/.cache/
+# 知识库生成产物(view 数据由 server 生成)
+view/public/pages/
+view/public/pages.json
+server/dist/
