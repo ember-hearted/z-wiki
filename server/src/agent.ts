@@ -1,4 +1,4 @@
-import "dotenv/config";
+import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -17,6 +17,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, "../..");
 const AGENT_DIR = path.join(PROJECT_ROOT, ".pi/agent");
 const MODELS_JSON = path.join(AGENT_DIR, "models.json");
+
+// 显式加载项目根目录的 .env(npm -w server 的 cwd 是 server/,默认 dotenv 找不到)
+dotenv.config({ path: path.join(PROJECT_ROOT, ".env") });
 
 // LLM 配置(可配置项暴露于此,改 provider/model 在此调整)
 const PROVIDER = "ark";
