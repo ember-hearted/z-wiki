@@ -20,7 +20,17 @@ const PROJECT_ROOT = path.resolve(__dirname, "../..");
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? "127.0.0.1";
 
-const app = Fastify({ logger: true });
+// 默认 debug:让事件流(app.log.debug "pi event")与请求日志在开发期都可见;
+// 生产可用 LOG_LEVEL=info 收敛。开发期用 pino-pretty 格式化输出。
+const isDev = process.env.NODE_ENV !== "production";
+const app = Fastify({
+  logger: {
+    level: process.env.LOG_LEVEL ?? "debug",
+    ...(isDev
+      ? { transport: { target: "pino-pretty", options: { translateTime: "HH:MM:ss", ignore: "pid,hostname", singleLine: true } } }
+      : {}),
+  },
+});
 
 await app.register(fastifyWebsocket);
 await app.register(fastifyMultipart, {
@@ -43,33 +53,81 @@ function broadcast(msg: unknown): void {
   }
 }
 
+// ── text_delta 攒批:模型 token 级流式太碎,按时间窗口合并后再推 WS ──
+const FLUSH_MS = 50;
+type DeltaBuf = { text: string; timer: NodeJS.Timeout | null };
+function getDeltaBuf(socket: WebSocket): DeltaBuf {
+  // 挂在 socket 上,per-connection 隔离;类型用任意键绕过 WS 类型
+  const s = socket as WebSocket & { __deltaBuf?: DeltaBuf };
+  if (!s.__deltaBuf) s.__deltaBuf = { text: "", timer: null };
+  return s.__deltaBuf;
+}
+function flushDelta(socket: WebSocket): void {
+  const buf = getDeltaBuf(socket);
+  if (buf.timer) {
+    clearTimeout(buf.timer);
+    buf.timer = null;
+  }
+  if (!buf.text) return;
+  const text = buf.text;
+  buf.text = "";
+  socket.send(JSON.stringify({ type: "text_delta", text }));
+  app.log.debug({ chars: text.length }, "text flushed");
+}
+
 /** 将 pi 的 AgentSessionEvent 转成前端可消费的简化消息,推给 WS。 */
 function relayEvent(socket: WebSocket, event: unknown): void {
   const e = event as {
     type: string;
     assistantMessageEvent?: { type: string; delta?: string };
     toolName?: string;
+    // read 的 args 形如 { file_path, offset?, limit? };其它工具各异,统一序列化
+    args?: unknown;
     isError?: boolean;
   };
-  app.log.debug({ event: e.type, ae: e.assistantMessageEvent?.type }, "pi event");
+  // text_delta 逐条太碎,不打日志;攒批 flush 时另打一条汇总
+  if (!(e.type === "message_update" && e.assistantMessageEvent?.type === "text_delta")) {
+    app.log.debug(
+      {
+        event: e.type,
+        ae: e.assistantMessageEvent?.type,
+        tool: e.toolName,
+        args: e.args,
+      },
+      "pi event"
+    );
+  }
 
   switch (e.type) {
-    case "message_update":
-      if (e.assistantMessageEvent?.type === "text_delta" && e.assistantMessageEvent.delta) {
-        socket.send(
-          JSON.stringify({ type: "text_delta", text: e.assistantMessageEvent.delta })
-        );
+    case "message_update": {
+      const ae = e.assistantMessageEvent;
+      if (ae?.type === "text_delta" && ae.delta) {
+        const buf = getDeltaBuf(socket);
+        buf.text += ae.delta;
+        // 已有定时器在跑就续用;否则开一个 50ms 窗口
+        if (!buf.timer) {
+          buf.timer = setTimeout(() => flushDelta(socket), FLUSH_MS);
+        }
+      } else {
+        // text_end 等子事件:先冲掉缓冲的 delta,保证顺序
+        flushDelta(socket);
       }
       break;
+    }
     case "tool_execution_start":
-      socket.send(JSON.stringify({ type: "tool_start", tool: e.toolName }));
+      flushDelta(socket);
+      socket.send(
+        JSON.stringify({ type: "tool_start", tool: e.toolName, args: e.args })
+      );
       break;
     case "tool_execution_end":
+      flushDelta(socket);
       socket.send(
         JSON.stringify({ type: "tool_end", tool: e.toolName, error: Boolean(e.isError) })
       );
       break;
     case "agent_end":
+      flushDelta(socket);
       socket.send(JSON.stringify({ type: "done" }));
       // 闭环刷新:agent 写完 wiki/output 后自动 build,有变更推 kb_updated
       void triggerBuild(socket);
@@ -123,6 +181,11 @@ app.get("/ws", { websocket: true }, async (socket, req) => {
 
   socket.on("close", () => {
     chatClients.delete(socket);
+    // 清理未 flush 的 delta 缓冲与定时器,避免泄漏/迟到写入
+    const buf = getDeltaBuf(socket);
+    if (buf.timer) clearTimeout(buf.timer);
+    buf.timer = null;
+    buf.text = "";
   });
 });
 

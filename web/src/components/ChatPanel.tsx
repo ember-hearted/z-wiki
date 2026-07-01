@@ -1,12 +1,33 @@
 import { useState, useRef, useEffect, type KeyboardEvent, type ChangeEvent } from 'react'
 import { useChat, type ChatMessage, type Segment } from '../hooks/useChat'
 
+/** 把工具入参提炼成一行可读摘要;read/edit/write 显示路径,其它工具退化成首个字符串字段。 */
+function describeArgs(tool: string, args: unknown): string | null {
+  if (!args || typeof args !== 'object') return null
+  const a = args as Record<string, unknown>
+  // pi 的 read/edit/write 兼容 file_path 与 path 两种参数名
+  const filePath = typeof a.file_path === 'string' ? a.file_path : typeof a.path === 'string' ? a.path : null
+  if (filePath && (tool === 'read' || tool === 'edit' || tool === 'write')) {
+    const parts = [filePath]
+    if (typeof a.offset === 'number') parts.push(`offset=${a.offset}`)
+    if (typeof a.limit === 'number') parts.push(`limit=${a.limit}`)
+    return parts.join(' ')
+  }
+  // 兜底:取第一个字符串字段,避免长 JSON 撑爆时间线
+  for (const v of Object.values(a)) {
+    if (typeof v === 'string') return v.length > 60 ? v.slice(0, 57) + '…' : v
+  }
+  return null
+}
+
 function ToolChip({ seg }: { seg: Extract<Segment, { kind: 'tool' }> }) {
   const label = seg.status === 'running' ? '运行中' : seg.status === 'error' ? '失败' : '完成'
+  const detail = describeArgs(seg.tool, seg.args)
   return (
     <span className={`chat-tool chat-tool-${seg.status}`}>
       <span className="chat-tool-dot" />
       <span className="chat-tool-name">{seg.tool}</span>
+      {detail && <span className="chat-tool-args">{detail}</span>}
       <span className="chat-tool-state">{label}</span>
     </span>
   )

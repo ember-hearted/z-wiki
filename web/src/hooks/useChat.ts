@@ -3,7 +3,14 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 /** 助手回合内的时间线片段:文本段与工具调用段按到达顺序排列,保留时序。 */
 export type Segment =
   | { kind: 'text'; id: string; text: string }
-  | { kind: 'tool'; id: string; tool: string; status: 'running' | 'done' | 'error' }
+  | {
+      kind: 'tool'
+      id: string
+      tool: string
+      status: 'running' | 'done' | 'error'
+      // 工具入参,read 形如 { file_path, offset?, limit? };仅 tool_start 携带
+      args?: unknown
+    }
 
 export interface ChatMessage {
   id: string
@@ -18,6 +25,7 @@ interface ServerMsg {
   type: 'text_delta' | 'tool_start' | 'tool_end' | 'done' | 'error' | 'system' | 'kb_updated' | 'ingest_done' | 'ingest_error'
   text?: string
   tool?: string
+  args?: unknown
   error?: boolean
   changed?: number
   total?: number
@@ -81,7 +89,13 @@ export function useChat() {
           setMessages(prev => {
             const id = streamingIdRef.current
             if (!id || !msg.tool) return prev
-            const seg: Segment = { kind: 'tool', id: nextId(), tool: msg.tool, status: 'running' }
+            const seg: Segment = {
+              kind: 'tool',
+              id: nextId(),
+              tool: msg.tool,
+              status: 'running',
+              args: msg.args,
+            }
             return prev.map(m =>
               m.id === id ? { ...m, segments: [...(m.segments ?? []), seg] } : m
             )

@@ -1900,6 +1900,15 @@ body.home-no-scroll {
   color: var(--text-faint);
   letter-spacing: 0.06em;
 }
+.chat-tool-args {
+  color: var(--text-faint);
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 0.85em;
+  max-width: 22em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .chat-tool-running .chat-tool-dot {
   background: var(--accent-bright);
   box-shadow: 0 0 6px var(--accent-border);
