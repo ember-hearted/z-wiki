@@ -30,7 +30,7 @@ export const KB_SYSTEM_PROMPT = `# 知识库项目规范
 \`\`\`
 raw/          — Source:原始来源,只读。LLM 读取但永不修改(代码层强制:write/edit 到 raw/ 会被拦截)
 wiki/         — Compiled:LLM 生成的结构化知识,由 LLM 全权维护
-output/       — Reports:LLM 生成的报告与分析(output/health-check/ 为健康检查子区)
+output/       — Reports:LLM 生成的报告与分析
 index.md      — Metadata:内容目录
 log.md        — Metadata:操作时间线日志
 \`\`\`
@@ -209,7 +209,7 @@ view: true  # 或 false
 
 **检查项**:断链扫描、孤儿 wiki、空文件、重复文件名、frontmatter 覆盖率、目录结构、wiki 统计。
 
-**执行**:运行 \`/health-check\` 命令,结果生成到 \`output/health-check/YYYY-MM-DD-知识库健康检查-报告.md\`,随后分析并修复简单问题。
+**执行**:运行 \`/health-check\` 命令,结果生成到 \`health-check/YYYY-MM-DD-知识库健康检查-报告.md\`,随后分析并修复简单问题。
 
 ---
 

@@ -7,7 +7,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { existsSync } from "node:fs";
-import { wikiDir, outputDir, healthCheckDir } from "./kbLayout.js";
+import { wikiDir, outputDir } from "./kbLayout.js";
 
 export interface TocItem {
   level: "h2" | "h3";
@@ -281,7 +281,6 @@ function shouldPublish(src: Source, mdText: string, minLines: number): boolean {
 async function scanSources(projectRoot: string): Promise<Source[]> {
   const wiki = wikiDir(projectRoot);
   const output = outputDir(projectRoot);
-  const exclude = healthCheckDir(projectRoot);
   const sources: Source[] = [];
   for (const [dir, type] of [[wiki, "wiki"], [output, "output"]] as const) {
     if (!existsSync(dir)) continue;
@@ -289,7 +288,6 @@ async function scanSources(projectRoot: string): Promise<Source[]> {
     for (const f of files.sort()) {
       if (!f.endsWith(".md")) continue;
       const abs = path.join(dir, f);
-      if (abs.startsWith(exclude)) continue;
       sources.push({
         abs,
         rel: path.relative(projectRoot, abs),

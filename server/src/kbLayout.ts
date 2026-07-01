@@ -30,11 +30,6 @@ export function logFile(projectRoot: string): string {
   return path.join(kbRoot(projectRoot), "log.md");
 }
 
-/** Reports 子区:健康检查报告目录,不进可视层。 */
-export function healthCheckDir(projectRoot: string): string {
-  return path.join(outputDir(projectRoot), "health-check");
-}
-
 /**
  * 判断绝对路径是否落在 Source(raw/) 下。raw/ 全层只读(ADR-0002 决策 2)。
  * 用 relative + 非 .. 前缀判断,避免 raw.txt / wiki/raw-x.md 这类伪匹配。

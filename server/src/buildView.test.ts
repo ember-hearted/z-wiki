@@ -54,14 +54,14 @@ test("output: publish flag overrides line count; ≥30 lines default published",
   }
 });
 
-test("output/health-check excluded", async () => {
+test("health-check 与 output 同级,不被 buildView 扫描", async () => {
   const root = await makeProject({
-    "kb/output/health-check/report.md": "---\npublish: true\n---\n# HC\n\nx\n",
+    "kb/health-check/report.md": "---\npublish: true\n---\n# HC\n\nx\n",
     "kb/output/real.md": "---\npublish: true\n---\n# Real\n\nx\n",
   });
   try {
     const { pages } = await buildView(root);
-    assert.ok(!stems(pages).has("report"), "health-check should be excluded");
+    assert.ok(!stems(pages).has("report"), "health-check 同级,不在扫描范围");
     assert.ok(stems(pages).has("real"));
   } finally {
     await fs.rm(root, { recursive: true, force: true });

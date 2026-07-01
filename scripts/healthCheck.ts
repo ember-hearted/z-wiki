@@ -1,7 +1,7 @@
 // healthCheck.ts — TS 版知识库健康检查(替代 share_wsl 的 4 个重复 Python 脚本)
 // 检查项:断链扫描、孤儿 wiki、空文件、重复文件名、frontmatter 覆盖率、wiki 统计
 // 用法:npm run health  (tsx scripts/healthCheck.ts)
-// 报告输出到 output/health-check/YYYY-MM-DD-知识库健康检查-报告.md
+// 报告输出到 health-check/YYYY-MM-DD-知识库健康检查-报告.md(与 output/ 同级,不进可视层)
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -203,7 +203,7 @@ async function main() {
     lines.push(`| [[${w.stem}]] | ${lc} | ${hasFrontmatter(w.content) ? "✅" : "—"} |`);
   }
 
-  const reportDir = path.join(VAULT, "output", "health-check");
+  const reportDir = path.join(VAULT, "health-check");
   await fs.mkdir(reportDir, { recursive: true });
   const reportPath = path.join(reportDir, `${today()}-知识库健康检查-报告.md`);
   await fs.writeFile(reportPath, lines.join("\n"), "utf-8");
