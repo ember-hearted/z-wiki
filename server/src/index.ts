@@ -11,6 +11,20 @@ const start = async (): Promise<void> => {
     const agentCtx = await buildAgentContext();
     const interaction = await createInteraction(agentCtx);
     interaction.log.info("agent context ready");
+
+    // graceful shutdown:tsx watch / concurrently 在 Ctrl+C 时给子进程发信号,
+    // 若有活跃 WebSocket 句柄 fastify 不会自行退出,会被反复 force kill。
+    let closing = false;
+    const shutdown = async (signal: string): Promise<void> => {
+      if (closing) return;
+      closing = true;
+      interaction.log.info({ signal }, "shutting down");
+      await interaction.app.close();
+      process.exit(0);
+    };
+    process.on("SIGINT", () => void shutdown("SIGINT"));
+    process.on("SIGTERM", () => void shutdown("SIGTERM"));
+
     const total = await interaction.refreshView();
     interaction.log.info({ total }, "initial buildView done");
     await interaction.app.listen({ port: PORT, host: HOST });
