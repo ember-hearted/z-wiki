@@ -10,3 +10,4 @@ server/dist/
 .pi/agent/sessions/
 /kb
 .claude/plans/
+/.claude/worktrees
