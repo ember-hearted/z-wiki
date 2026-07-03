@@ -40,6 +40,8 @@ export function initialConfig(kbRoot: string): {
     baseUrl: '',
     api: 'openai-completions',
     model: '',
+    // 与 server/src/apiSpecs.ts 的 DEFAULT_EXPOSED_SPECS 保持同步(seam 隔离无法 import,D9)。
+    // 改默认暴露项时三处同改:apiSpecs.ts / config.example.json / 此处。
     exposedApiSpecs: ['openai-completions', 'anthropic-messages'],
     vaults: [{ path: kbRoot, name: '默认' }],
     currentVault: kbRoot,

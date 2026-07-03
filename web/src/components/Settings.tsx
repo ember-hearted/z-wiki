@@ -30,6 +30,7 @@ export default function Settings() {
   const [currentVault, setCurrentVault] = useState('')
   const [configStatus, setConfigStatus] = useState<ConfigStatus | null>(null)
   const [specs, setSpecs] = useState<ApiSpecEntry[]>([])
+  const [exposed, setExposed] = useState<string[]>([])
   const [ingestActive, setIngestActive] = useState(false)
 
   // LLM 配置 form:从 /api/config/status 回填,保存时 POST /api/config/llm
@@ -56,11 +57,19 @@ export default function Settings() {
       setCurrentVault(vdata.currentVault ?? '')
       const status = (await statusRes.json()) as ConfigStatus
       setConfigStatus(status)
-      setApiInput(status.api || 'openai-completions')
       setBaseUrlInput(status.baseUrl || '')
       setModelInput(status.model || '')
       setIngestActive(((await activeRes.json()) as { active: boolean }).active ?? false)
-      setSpecs(((await specsRes.json()) as { specs: ApiSpecEntry[] }).specs ?? [])
+      const specsData = (await specsRes.json()) as { specs: ApiSpecEntry[]; exposed: string[] }
+      setSpecs(specsData.specs ?? [])
+      setExposed(specsData.exposed ?? [])
+      // apiInput 回填:status.api 不在 exposed 列表(用户手编非暴露规范)时回退首个 exposed,
+      // 避免 <select value> 找不到匹配 option 显示空(Q2.4:exposed 控制暴露子集)
+      setApiInput(
+        specsData.exposed.includes(status.api)
+          ? status.api
+          : (specsData.exposed[0] ?? 'openai-completions'),
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
@@ -200,11 +209,13 @@ export default function Settings() {
               value={apiInput}
               onChange={(e) => setApiInput(e.target.value)}
             >
-              {specs.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
+              {specs
+                .filter((s) => exposed.includes(s.id))
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
             </select>
             <span
               className="settings-tooltip"
