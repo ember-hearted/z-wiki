@@ -11,15 +11,11 @@ import { createServer } from './index.js'
 process.env.NODE_ENV = 'production'
 process.env.LOG_LEVEL = 'error'
 
-// 最小 models.json fixture:内容沿用项目真实配置,让 ModelRegistry 能加载 ark 模型。
-const MODELS_JSON = {
-  providers: {
-    ark: {
-      baseUrl: 'https://ark.cn-beijing.volces.com/api/coding',
-      api: 'anthropic-messages',
-      models: [{ id: 'ark-code-latest', contextWindow: 128000 }],
-    },
-  },
+// 最小 config.json fixture:buildAgentContext 从此生成 models.json + 注入 apiKey(ADR-0003 D3.1)。
+const CONFIG_JSON = {
+  apiKey: 'test-key',
+  provider: 'ark',
+  model: 'ark-code-latest',
 }
 
 interface Vault {
@@ -40,7 +36,8 @@ async function makeVault(wikiFiles: Record<string, string>): Promise<Vault> {
     await fs.writeFile(abs, content, 'utf-8')
   }
   await fs.mkdir(agentDir, { recursive: true })
-  await fs.writeFile(path.join(agentDir, 'models.json'), JSON.stringify(MODELS_JSON), 'utf-8')
+  // config.json 落在 appRoot(= root,agentDir 上两级),buildAgentContext 从此读取并生成 agentDir/models.json。
+  await fs.writeFile(path.join(root, 'config.json'), JSON.stringify(CONFIG_JSON), 'utf-8')
   return { kbRoot, agentDir, root }
 }
 

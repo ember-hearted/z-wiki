@@ -6,7 +6,11 @@ dist/
 # 知识库内容(gitignored,由 agent 维护;新人用 kb_example/ 起步)
 server/dist/
 .env
+# 引导配置(含明文 apiKey,ADR-0003 D3.1);config.example.json 可提交
+/config.json
 .pi/agent/auth.json
+# models.json 是启动派生产物(从 config.json 生成,ADR-0003 D3.1),不提交
+.pi/agent/models.json
 .pi/agent/sessions/
 /kb
 .claude/plans/

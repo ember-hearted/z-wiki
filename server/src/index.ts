@@ -1,6 +1,6 @@
 // index.ts — 薄入口:导出 createServer() 供桌面形态嵌入;start() 为 dev/CLI 入口。
 // Interaction 主体在 interaction.ts,可脱离 server 启动单测 import。
-import dotenv from 'dotenv'
+// dev 形态:config.json 放项目根(由 buildAgentContext 从 appRoot 推导读取,ADR-0003 D3.1)。
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { realpathSync } from 'node:fs'
@@ -31,8 +31,6 @@ export async function createServer(opts: AgentContextOptions): Promise<Interacti
 
 /** dev/CLI 入口:用默认 PROJECT_ROOT 推导路径,listen。 */
 async function start(): Promise<void> {
-  // 显式加载项目根目录的 .env(npm -w server 的 cwd 是 server/,默认 dotenv 找不到)。
-  dotenv.config({ path: path.join(PROJECT_ROOT, '.env') })
   try {
     const interaction = await createServer({
       kbRoot: kbRoot(PROJECT_ROOT),

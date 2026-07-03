@@ -11,10 +11,9 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import { KB_SYSTEM_PROMPT } from './prompt.js'
 import { kbHooksFactory } from './kbHooks.js'
+import { readConfig, writeModelsJson, type ConfigJson } from './config.js'
 
-// LLM 配置(可配置项暴露于此,改 provider/model 在此调整)
-const PROVIDER = 'ark'
-const MODEL_ID = 'ark-code-latest'
+// thinking 级别(可配置项暴露于此)。provider/model 改走 config.json(ADR-0003 D3.1)。
 const THINKING_LEVEL = 'off' as const
 
 // agent 默认工具集:知识库编译器所需能力,不含 bash(ADR-0003 D6 收紧能力面 + 跨平台一致)。
@@ -36,10 +35,12 @@ export interface AgentContext {
   /** 全局 agent 目录(.pi/agent/)。 */
   agentDir: string
   /**
-   * app 根(resourceLoader cwd + chat sessionManager 基准),全局、不随 Vault 切换(D7)。
+   * app 根(resourceLoader cwd + chat sessionManager 基准 + config.json 所在),全局、不随 Vault 切换(D7)。
    * = agentDir 上两级(`<x>/.pi/agent` → `<x>`),与 pi `getAgentDir()` 约定一致。
    */
   appRoot: string
+  /** 引导配置(全局真相源,ADR-0003 D3.1)。provider/model 供 resolveModel 用,apiKey 已注入 authStorage。 */
+  config: ConfigJson
 }
 
 /**
@@ -48,23 +49,22 @@ export interface AgentContext {
  */
 export async function buildAgentContext(opts: AgentContextOptions): Promise<AgentContext> {
   const { kbRoot, agentDir } = opts
-  // appRoot = agentDir 上两级(.pi/agent → .pi → appRoot)。
+  // appRoot = agentDir 上两级(.pi/agent → .pi → appRoot)。config.json 落在此(ADR-0003 D3)。
   const appRoot = path.dirname(path.dirname(agentDir))
-  const modelsJson = path.join(agentDir, 'models.json')
 
   // layer1 内容必须在 kb/(ADR-0002)。缺失则提示从样板起步,失败快。
   if (!existsSync(kbRoot)) {
     throw new Error(`知识库目录不存在:${kbRoot}\n请先复制样板起步:cp -r kb_example kb`)
   }
 
-  const authStorage = AuthStorage.create(path.join(agentDir, 'auth.json'))
-  const modelRegistry = ModelRegistry.create(authStorage, modelsJson)
+  // 引导配置(单一真相源):读 config.json,生成 models.json(派生产物)喂 ModelRegistry。
+  const config = readConfig(path.join(appRoot, 'config.json'))
+  const modelsJsonPath = writeModelsJson(agentDir, config)
 
-  // 运行时注入 API key(不落盘)。优先用 .env 的 ARK_API_KEY(dev 形态由 index.ts 加载)。
-  const apiKey = process.env.ARK_API_KEY
-  if (apiKey) {
-    authStorage.setRuntimeApiKey(PROVIDER, apiKey)
-  }
+  // authStorage 用内存后端 + setRuntimeApiKey:apiKey 运行时注入,auth.json 不落盘(ADR-0003 D3.1)。
+  const authStorage = AuthStorage.inMemory()
+  authStorage.setRuntimeApiKey(config.provider, config.apiKey)
+  const modelRegistry = ModelRegistry.create(authStorage, modelsJsonPath)
 
   // 资源加载器:注入知识库系统提示词 + kb 钩子 extension
   const resourceLoader = new DefaultResourceLoader({
@@ -75,15 +75,16 @@ export async function buildAgentContext(opts: AgentContextOptions): Promise<Agen
   })
   await resourceLoader.reload()
 
-  return { authStorage, modelRegistry, resourceLoader, kbRoot, agentDir, appRoot }
+  return { authStorage, modelRegistry, resourceLoader, kbRoot, agentDir, appRoot, config }
 }
 
 /** 查找配置好的模型,找不到则抛错。 */
 export function resolveModel(ctx: AgentContext) {
-  const model = ctx.modelRegistry.find(PROVIDER, MODEL_ID)
+  const { provider, model: modelId } = ctx.config
+  const model = ctx.modelRegistry.find(provider, modelId)
   if (!model) {
     throw new Error(
-      `模型未找到:provider="${PROVIDER}" id="${MODEL_ID}"。请检查 .pi/agent/models.json。`,
+      `模型未找到:provider="${provider}" id="${modelId}"。请检查 config.json 的 provider/model 字段。`,
     )
   }
   return model

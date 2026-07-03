@@ -32,7 +32,7 @@ make build        # 构建前端 + 后端产物
 - **`kb/` gitignored,由 agent 维护**。起步用 `cp -r kb_example kb`。server 启动检查 `kb/` 存在,缺失即报错。不要把 `kb/` 内容提交。
 - **agent 的 cwd = `kb/`**。prompt 与工具调用里的路径都相对 `kb/`(如 `read wiki/01-x.md`)。改 `agentHost.ts` 的 cwd 会破坏 prompt 路径语义。
 - **buildView 是纯函数**:只读 fs 返回 `{pages, fragments}`,**不写盘**。可视数据由 Interaction 内存缓存经 `/api/pages` 暴露。不要再加写盘逻辑。
-- **`.env` 在项目根**(不是 `server/`)。`agentHost.ts` 显式 `dotenv.config(path.join(PROJECT_ROOT, ".env"))`,因为 `npm -w server` 的 cwd 是 `server/`。
+- **`config.json` 是单一真相源**(ADR-0003 D3.1):含 `apiKey`/`provider`/`model`/`vaults`/`currentVault`。dev 形态放项目根(从 `config.example.json` 复制起步),桌面形态放 UserDataDir。`buildAgentContext` 从 appRoot(= agentDir 上两级)读它,启动生成 `.pi/agent/models.json`(派生产物),apiKey 经 `setRuntimeApiKey` 运行时注入——**`auth.json` 不落盘**。不再读 `.env`。
 - **`raw/` 只读是双层防御**:prompt 引导(第一道)+ `kbHooks` 的 tool_call 拦截 write/edit(兜底)。拦 write/edit 不拦 bash(bash 写 raw 靠 prompt,正则拦 bash 会误伤读命令)。
 - **pi agent 工具集不含 bash**(ADR-0003 D6):`tools: ["read","edit","write","grep","find","ls"]`。agent 是知识库编译器,不需要 shell。
 
