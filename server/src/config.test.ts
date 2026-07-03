@@ -211,3 +211,76 @@ test('writeConfig: 不 mutate 入参 config 对象', async () => {
     await fs.rm(tmp, { recursive: true, force: true })
   }
 })
+
+test('generateModelsJson: 规范化带 suffix 的 baseUrl(兜底,避免 SDK 双拼)', () => {
+  // 手编 config.json 带 suffix,启动路径不经 writeConfig → generateModelsJson 必须兜底规范化
+  const json = generateModelsJson({
+    baseUrl: 'https://api.example.com/v1/chat/completions',
+    api: 'openai-completions',
+    model: 'gpt-4o',
+  })
+  assert.equal(json.providers.custom.baseUrl, 'https://api.example.com/v1')
+})
+
+test('readConfig: 不保留老 config 的废弃 provider 字段(ADR-0004 D1)', async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'zwiki-cfg-'))
+  try {
+    const cfgPath = path.join(tmp, 'config.json')
+    // 老 config 带 provider:'ark'(新 schema 已废弃)
+    await fs.writeFile(
+      cfgPath,
+      JSON.stringify({ apiKey: 'k', provider: 'ark', model: 'm' }),
+      'utf-8',
+    )
+    const cfg = readConfig(cfgPath)
+    assert.equal(
+      (cfg as Record<string, unknown>).provider,
+      undefined,
+      'readConfig 不应保留废弃的 provider 字段',
+    )
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true })
+  }
+})
+
+test('readConfig: exposedApiSpecs 空数组 [] → 尊重用户意图(不回退默认)', async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'zwiki-cfg-'))
+  try {
+    const cfgPath = path.join(tmp, 'config.json')
+    await fs.writeFile(
+      cfgPath,
+      JSON.stringify({
+        apiKey: 'k',
+        baseUrl: '',
+        api: 'openai-completions',
+        model: '',
+        exposedApiSpecs: [],
+      }),
+      'utf-8',
+    )
+    const cfg = readConfig(cfgPath)
+    assert.deepEqual(cfg.exposedApiSpecs, [])
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true })
+  }
+})
+
+test('空壳 config → ModelRegistry.create 不抛(D6 空壳能起的 pi 集成契约)', async () => {
+  // 守护 ADR-0004 D6:空壳(baseUrl/model 空)时 pi loadCustomModels 对空 baseUrl 抛错,
+  // 但被 try/catch 吞到 loadError(不向外抛),故 ModelRegistry.create 成功、server 能起。
+  // 若 pi 升级改此行为(loadCustomModels 不再 catch),此测试会失败,暴露 D6 失效。
+  const { ModelRegistry, AuthStorage } = await import('@earendil-works/pi-coding-agent')
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'zwiki-cfg-'))
+  try {
+    const agentDir = path.join(tmp, '.pi/agent')
+    await fs.mkdir(agentDir, { recursive: true })
+    const cfg: ConfigJson = { apiKey: '', baseUrl: '', api: 'openai-completions', model: '' }
+    const modelsJsonPath = writeModelsJson(agentDir, cfg)
+    const authStorage = AuthStorage.inMemory()
+    const registry = ModelRegistry.create(authStorage, modelsJsonPath)
+    assert.ok(registry, '空壳 config 下 ModelRegistry.create 应成功')
+    assert.equal(registry.find(PROVIDER_KEY, ''), undefined, '空壳下 find 应返回 undefined')
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true })
+  }
+})

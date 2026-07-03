@@ -65,7 +65,9 @@ export function generateModelsJson(
   return {
     providers: {
       [PROVIDER_KEY]: {
-        baseUrl: config.baseUrl,
+        // 规范化兜底(ADR-0004 D3):无论 baseUrl 从 writeConfig(已规范化)还是手编 config.json
+        // (未规范化)来,generateModelsJson 都保证喂给 pi 的是干净值,避免 SDK 双拼 suffix。
+        baseUrl: normalizeBaseUrl(config.baseUrl, config.api),
         api: config.api,
         models: config.model ? [{ id: config.model, contextWindow: DEFAULT_CONTEXT_WINDOW }] : [],
       },
@@ -97,18 +99,22 @@ export function readConfig(configPath: string): ConfigJson {
   if (!raw.api) {
     console.warn('[z-wiki] config.json 的 api 为空,回退 openai-completions。')
   }
-  const exposedApiSpecs =
-    raw.exposedApiSpecs && raw.exposedApiSpecs.length > 0
-      ? raw.exposedApiSpecs
-      : [...DEFAULT_EXPOSED_SPECS]
-  // 字段兜底:老 config 可能缺 baseUrl/apiKey/model(undefined),回退空字符串避免下游 .trim() 等抛错。
+  // exposedApiSpecs:undefined/非数组 → 回退默认;空数组 [] → 尊重用户显式配置(不回退)。
+  const exposedApiSpecs = Array.isArray(raw.exposedApiSpecs)
+    ? raw.exposedApiSpecs
+    : [...DEFAULT_EXPOSED_SPECS]
+  // 显式列举 ConfigJson 已知字段,不 ...raw 全保留——避免老 config 的废弃字段(如 provider)
+  // 残留进运行时对象 + 被 writeConfig 写回 config.json(ADR-0004 D1 干掉 provider 要彻底)。
+  // 字段兜底:老 config 可能缺 baseUrl/apiKey/model(undefined),回退空字符串避免下游 .trim() 抛错。
   return {
-    ...raw,
     apiKey: raw.apiKey ?? '',
     baseUrl: raw.baseUrl ?? '',
-    model: raw.model ?? '',
     api,
+    model: raw.model ?? '',
     exposedApiSpecs,
+    vaults: raw.vaults,
+    currentVault: raw.currentVault,
+    preferences: raw.preferences,
   }
 }
 
