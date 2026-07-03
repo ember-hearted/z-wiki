@@ -5,7 +5,6 @@ import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify'
 import fastifyWebsocket from '@fastify/websocket'
 import fastifyMultipart from '@fastify/multipart'
 import type { WebSocket } from '@fastify/websocket'
-import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import {
@@ -17,9 +16,6 @@ import {
 import { buildView, type PageMeta } from './buildView.js'
 import { hasIndexChanged } from './hasIndexChanged.js'
 import { rawDir } from './kbLayout.js'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const PROJECT_ROOT = path.resolve(__dirname, '../..')
 
 export interface Interaction {
   app: FastifyInstance
@@ -33,6 +29,9 @@ export interface Interaction {
  * agentCtx 必须已就绪(由调用方在 listen 前通过 AgentHost 构建)。
  */
 export async function createInteraction(agentCtx: AgentContext): Promise<Interaction> {
+  // vaultRoot = kb/ 的父级,buildView/rawDir 的基准(随 Vault 切换)。
+  const vaultRoot = path.dirname(agentCtx.kbRoot)
+
   // 默认 debug:让事件流(app.log.debug "pi event")与请求日志在开发期都可见;
   // 生产可用 LOG_LEVEL=info 收敛。开发期用 pino-pretty 格式化输出。
   const isDev = process.env.NODE_ENV !== 'production'
@@ -141,7 +140,7 @@ export async function createInteraction(agentCtx: AgentContext): Promise<Interac
 
   /** 构建 + 通知:纯函数 buildView → 对比缓存 → 变了才换缓存并广播 kb_updated。 */
   async function triggerBuild(notify: { send: (s: string) => void } | null): Promise<void> {
-    const r = await buildView(PROJECT_ROOT)
+    const r = await buildView(vaultRoot)
     if (hasIndexChanged(viewCache?.fragments ?? null, r.fragments)) {
       viewCache = r
       const payload = JSON.stringify({ type: 'kb_updated', total: r.pages.length })
@@ -247,11 +246,11 @@ export async function createInteraction(agentCtx: AgentContext): Promise<Interac
 
     // 安全的文件名:保留原命名,去掉路径与危险字符
     const safeName = path.basename(file.filename).replace(/[^\w.一-龥-]/g, '_')
-    const rawPath = path.join(rawDir(PROJECT_ROOT), safeName)
+    const rawPath = path.join(rawDir(vaultRoot), safeName)
 
     // 归档到 raw/(写锁;raw/ 对 agent 只读,但上传端点是合法写入方)
     await withFileLock(rawPath, async () => {
-      await fs.mkdir(rawDir(PROJECT_ROOT), { recursive: true })
+      await fs.mkdir(rawDir(vaultRoot), { recursive: true })
       const buf = await file.toBuffer()
       await fs.writeFile(rawPath, buf, 'utf-8')
     })
@@ -283,7 +282,7 @@ export async function createInteraction(agentCtx: AgentContext): Promise<Interac
     app,
     log: app.log,
     refreshView: async () => {
-      const r = await buildView(PROJECT_ROOT)
+      const r = await buildView(vaultRoot)
       viewCache = r
       return r.pages.length
     },

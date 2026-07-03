@@ -1,6 +1,4 @@
-import dotenv from 'dotenv'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { existsSync } from 'node:fs'
 import {
   AuthStorage,
@@ -13,42 +11,56 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import { KB_SYSTEM_PROMPT } from './prompt.js'
 import { kbHooksFactory } from './kbHooks.js'
-import { kbRoot } from './kbLayout.js'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const PROJECT_ROOT = path.resolve(__dirname, '../..')
-const KB_ROOT = kbRoot(PROJECT_ROOT)
-const AGENT_DIR = path.join(PROJECT_ROOT, '.pi/agent')
-const MODELS_JSON = path.join(AGENT_DIR, 'models.json')
-
-// 显式加载项目根目录的 .env(npm -w server 的 cwd 是 server/,默认 dotenv 找不到)
-dotenv.config({ path: path.join(PROJECT_ROOT, '.env') })
 
 // LLM 配置(可配置项暴露于此,改 provider/model 在此调整)
 const PROVIDER = 'ark'
 const MODEL_ID = 'ark-code-latest'
 const THINKING_LEVEL = 'off' as const
 
+// agent 默认工具集:知识库编译器所需能力,不含 bash(ADR-0003 D6 收紧能力面 + 跨平台一致)。
+const AGENT_TOOLS = ['read', 'edit', 'write', 'grep', 'find', 'ls'] as const
+
+export interface AgentContextOptions {
+  /** 当前 Vault 的 kb/ 根目录(agent cwd,随 Vault 切换)。 */
+  kbRoot: string
+  /** 全局 agent 目录(`<appRoot>/.pi/agent/`,pi 约定),含 models.json/sessions/bin。 */
+  agentDir: string
+}
+
 export interface AgentContext {
   authStorage: AuthStorage
   modelRegistry: ModelRegistry
   resourceLoader: DefaultResourceLoader
+  /** 当前 Vault 的 kb/ 根(agent cwd,随 Vault 切换)。 */
+  kbRoot: string
+  /** 全局 agent 目录(.pi/agent/)。 */
+  agentDir: string
+  /**
+   * app 根(resourceLoader cwd + chat sessionManager 基准),全局、不随 Vault 切换(D7)。
+   * = agentDir 上两级(`<x>/.pi/agent` → `<x>`),与 pi `getAgentDir()` 约定一致。
+   */
+  appRoot: string
 }
 
 /**
  * 构建 agent 共享上下文:auth + model registry + resource loader(系统提示词 + kb 钩子)。
- * 对话 agent 与后台 ingest agent 共用同一份。
+ * 对话 agent 与后台 ingest agent 共用同一份。路径全部由参数传入,不依赖模块级常量。
  */
-export async function buildAgentContext(): Promise<AgentContext> {
+export async function buildAgentContext(opts: AgentContextOptions): Promise<AgentContext> {
+  const { kbRoot, agentDir } = opts
+  // appRoot = agentDir 上两级(.pi/agent → .pi → appRoot)。
+  const appRoot = path.dirname(path.dirname(agentDir))
+  const modelsJson = path.join(agentDir, 'models.json')
+
   // layer1 内容必须在 kb/(ADR-0002)。缺失则提示从样板起步,失败快。
-  if (!existsSync(KB_ROOT)) {
-    throw new Error(`知识库目录不存在:${KB_ROOT}\n请先复制样板起步:cp -r kb_example kb`)
+  if (!existsSync(kbRoot)) {
+    throw new Error(`知识库目录不存在:${kbRoot}\n请先复制样板起步:cp -r kb_example kb`)
   }
 
-  const authStorage = AuthStorage.create(path.join(AGENT_DIR, 'auth.json'))
-  const modelRegistry = ModelRegistry.create(authStorage, MODELS_JSON)
+  const authStorage = AuthStorage.create(path.join(agentDir, 'auth.json'))
+  const modelRegistry = ModelRegistry.create(authStorage, modelsJson)
 
-  // 运行时注入 API key(不落盘)。优先用 .env 的 ARK_API_KEY。
+  // 运行时注入 API key(不落盘)。优先用 .env 的 ARK_API_KEY(dev 形态由 index.ts 加载)。
   const apiKey = process.env.ARK_API_KEY
   if (apiKey) {
     authStorage.setRuntimeApiKey(PROVIDER, apiKey)
@@ -56,14 +68,14 @@ export async function buildAgentContext(): Promise<AgentContext> {
 
   // 资源加载器:注入知识库系统提示词 + kb 钩子 extension
   const resourceLoader = new DefaultResourceLoader({
-    cwd: PROJECT_ROOT,
-    agentDir: AGENT_DIR,
+    cwd: appRoot,
+    agentDir,
     systemPromptOverride: () => KB_SYSTEM_PROMPT,
     extensionFactories: [kbHooksFactory],
   })
   await resourceLoader.reload()
 
-  return { authStorage, modelRegistry, resourceLoader }
+  return { authStorage, modelRegistry, resourceLoader, kbRoot, agentDir, appRoot }
 }
 
 /** 查找配置好的模型,找不到则抛错。 */
@@ -83,22 +95,23 @@ export interface CreateChatSessionOptions {
 }
 
 /**
- * 创建对话 agent 会话(常驻,in-memory)。
+ * 创建对话 agent 会话(per-WS-connection,断开即 dispose)。
  * 前端消息经 WS 进来 → session.prompt() → onEvent 推回前端。
  */
 export async function createChatSession(opts: CreateChatSessionOptions): Promise<AgentSession> {
   const model = resolveModel(opts.ctx)
+  const { kbRoot, agentDir, appRoot } = opts.ctx
   const { session } = await createAgentSession({
-    cwd: KB_ROOT,
-    agentDir: AGENT_DIR,
+    cwd: kbRoot,
+    agentDir,
     model,
     thinkingLevel: THINKING_LEVEL,
     authStorage: opts.ctx.authStorage,
     modelRegistry: opts.ctx.modelRegistry,
     resourceLoader: opts.ctx.resourceLoader,
     // 落盘到 .pi/agent/sessions/chat/——每次连接新建会话文件,不续上下文,历史留档
-    sessionManager: SessionManager.create(PROJECT_ROOT, path.join(AGENT_DIR, 'sessions', 'chat')),
-    tools: ['read', 'bash', 'edit', 'write', 'grep', 'find', 'ls'],
+    sessionManager: SessionManager.create(appRoot, path.join(agentDir, 'sessions', 'chat')),
+    tools: [...AGENT_TOOLS],
   })
   session.subscribe(opts.onEvent)
   return session
@@ -116,17 +129,18 @@ export interface CreateIngestSessionOptions {
  */
 export async function createIngestSession(opts: CreateIngestSessionOptions): Promise<AgentSession> {
   const model = resolveModel(opts.ctx)
+  const { kbRoot, agentDir } = opts.ctx
   const { session } = await createAgentSession({
-    cwd: KB_ROOT,
-    agentDir: AGENT_DIR,
+    cwd: kbRoot,
+    agentDir,
     model,
     thinkingLevel: THINKING_LEVEL,
     authStorage: opts.ctx.authStorage,
     modelRegistry: opts.ctx.modelRegistry,
     resourceLoader: opts.ctx.resourceLoader,
     // 持久化到 .pi/sessions/,文件名带时间戳避免覆盖
-    sessionManager: SessionManager.create(path.join(AGENT_DIR, 'sessions')),
-    tools: ['read', 'bash', 'edit', 'write', 'grep', 'find', 'ls'],
+    sessionManager: SessionManager.create(path.join(agentDir, 'sessions')),
+    tools: [...AGENT_TOOLS],
   })
   session.subscribe(opts.onEvent)
   return session
