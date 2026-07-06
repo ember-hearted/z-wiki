@@ -95,6 +95,17 @@ export function readConfig(configPath: string): ConfigJson {
     throw new Error(`配置文件解析失败:${configPath}\n${(e as Error).message}`)
   }
   const raw = parsed as ConfigJson
+  // 老 schema 检测(切片 1 之前 config.json 用 provider 字段):静默丢弃会兜底成空 baseUrl →
+  // resolveModel 抛误导性「模型未找到」。失败快:检测到 provider 字段时明确要求迁移。
+  const legacyProvider = (raw as unknown as Record<string, unknown>).provider
+  if (legacyProvider !== undefined) {
+    throw new Error(
+      `检测到老 schema(config.json 含 "provider" 字段:${JSON.stringify(legacyProvider)})。\n` +
+        `切片 1(commit 43de07c)已干掉 provider 预设,改为 baseUrl/api/model 可配。\n` +
+        `请迁移 config.json:删除 provider,补齐 baseUrl/api/model(参考 config.example.json)。\n` +
+        `ark 迁移参考:baseUrl="https://ark.cn-beijing.volces.com/api/coding",api="anthropic-messages"。`,
+    )
+  }
   const api = raw.api || DEFAULT_API
   if (!raw.api) {
     console.warn('[z-wiki] config.json 的 api 为空,回退 openai-completions。')

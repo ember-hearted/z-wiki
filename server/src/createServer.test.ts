@@ -12,9 +12,11 @@ process.env.NODE_ENV = 'production'
 process.env.LOG_LEVEL = 'error'
 
 // 最小 config.json fixture:buildAgentContext 从此生成 models.json + 注入 apiKey(ADR-0003 D3.1)。
+// 火山 ark 齐配置(新 schema:baseUrl/api/model;切片 1 干掉 provider 预设后不再用 provider 字段)。
 const CONFIG_JSON = {
   apiKey: 'test-key',
-  provider: 'ark',
+  baseUrl: 'https://ark.cn-beijing.volces.com/api/coding',
+  api: 'anthropic-messages',
   model: 'ark-code-latest',
 }
 
