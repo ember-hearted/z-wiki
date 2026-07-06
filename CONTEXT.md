@@ -57,3 +57,11 @@ z-wiki 桌面化引入的概念。仅领域语言,实现细节见 ADR-0003。
 
 - **AgentHost**(`agentHost.ts`)—— pi SDK 全部封装。不知道 web/HTTP/广播。
 - **Interaction**(`interaction.ts`)—— 外部接入 + 业务编排。通过 AgentHost 窄 interface 碰 agent。
+
+## 主题(layer2 可视层外观)
+
+z-wiki 的视觉外观有两套主题,共享同一套靛青 accent 与工业骨架,基底明暗反转。纯阅读偏好,不进 server 单一真相源,存 localStorage。
+
+- **Archive(暗)** —— 现有深色工业档案风主题。温润深底 + 低饱和靛青 + 档案展台调性;首页 3D 书架画布恒为深色展台(即使切到 Draft,书架区仍保持深色舞台)。
+- **Draft(浅)** —— 冷蓝图纸风浅色主题。浅灰冷底 + 深石板字 + 原子化空心边框,呼应工业图纸/仪表盘底。与 Archive 同 accent,切换时品牌色不断裂。
+- **主题开关** —— header 设置按钮右侧的 pill 滑动开关(月左日右),无文字、纯图标,控制明暗切换。a11y 对齐项目自定义控件基准(`role="switch"`+键盘)。

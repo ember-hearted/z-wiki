@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Wiki</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>📖</text></svg>" />
+    <script>
+      // 主题 FOUC 防护：在 React 挂载前据 localStorage 定 data-theme，避免首屏闪烁。
+      // 默认 archive(暗)；localStorage 取到 'draft' 才走浅色。无值/异常都回落 archive。
+      ;(function () {
+        try {
+          var t = localStorage.getItem('theme')
+          document.documentElement.setAttribute('data-theme', t === 'draft' ? 'draft' : 'archive')
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'archive')
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
