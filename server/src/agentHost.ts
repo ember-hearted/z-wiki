@@ -12,7 +12,13 @@ import {
 import type { Api, Model } from '@earendil-works/pi-ai'
 import { KB_SYSTEM_PROMPT } from './prompt.js'
 import { kbHooksFactory } from './kbHooks.js'
-import { PROVIDER_KEY, readConfig, writeModelsJson, type ConfigJson } from './config.js'
+import {
+  PROVIDER_KEY,
+  readConfig,
+  writeModelsJson,
+  writeShellSettingsJson,
+  type ConfigJson,
+} from './config.js'
 
 // thinking 级别(可配置项暴露于此)。provider/model 改走 config.json(ADR-0003 D3.1)。
 const THINKING_LEVEL = 'off' as const
@@ -67,6 +73,10 @@ export async function buildAgentContext(opts: AgentContextOptions): Promise<Agen
     console.warn('[z-wiki] config.json 的 apiKey 为空,agent 调用将失败(切片 05 设置页填 key)。')
   }
   const modelsJsonPath = writeModelsJson(agentDir, config)
+  // 派生 pi 的 settings.json 的 shellPath 字段(ADR-0003 D6 覆盖口子)。与 models.json 同为启动派生产物,
+  // 但 settings.json 由 pi 管理,writeShellSettingsJson 用 read-modify-write 只注入 shellPath。运行时不写,
+  // 改 shellPath 走 POST /api/config/shell 写 config.json + 重启生效。
+  writeShellSettingsJson(agentDir, config)
 
   // authStorage 用内存后端 + setRuntimeApiKey:apiKey 运行时注入,auth.json 不落盘(ADR-0003 D3.1)。
   const authStorage = AuthStorage.inMemory()

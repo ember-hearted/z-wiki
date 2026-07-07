@@ -31,6 +31,12 @@ export interface ConfigJson {
   vaults?: VaultEntry[]
   /** 当前打开的 Vault 路径(与 vaults 中某项 path 一致;首版可空,实际 kbRoot 由调用方传入)。 */
   currentVault?: string
+  /**
+   * Git Bash 可执行文件路径(可选,ADR-0003 D6 预留的 shellPath 覆盖口子)。
+   * 非空 → 启动时派生写入 pi 的 agentDir/settings.json,覆盖 pi 自动探测(Program Files\Git\bin\bash.exe → PATH)。
+   * 空 → 不写 shellPath 字段,pi 走自动探测。仅桌面 win 形态实际消费;dev/unix 形态填了也无害(pi getShellConfig 对不存在路径抛错,但默认工具集不含 bash)。
+   */
+  shellPath?: string
   /** 全局偏好(首版占位,未来扩展)。 */
   preferences?: Record<string, unknown>
 }
@@ -68,6 +74,7 @@ const EMPTY_CONFIG: ConfigJson = {
   exposedApiSpecs: [...DEFAULT_EXPOSED_SPECS],
   vaults: [],
   currentVault: '',
+  shellPath: '',
   preferences: {},
 }
 
@@ -180,6 +187,8 @@ export function readConfig(configPath: string): ConfigJson {
     exposedApiSpecs,
     vaults: raw.vaults,
     currentVault: raw.currentVault,
+    // shellPath:非字符串(含 undefined)→ 空(走 pi 自动探测)。不 trim,完整路径原样保留。
+    shellPath: typeof raw.shellPath === 'string' ? raw.shellPath : '',
     preferences: raw.preferences,
   }
 }
@@ -193,6 +202,38 @@ export function writeModelsJson(agentDir: string, config: ConfigJson): string {
   const content = generateModelsJson(config)
   writeFileSync(modelsJsonPath, JSON.stringify(content, null, 2), 'utf-8')
   return modelsJsonPath
+}
+
+/**
+ * 派生写入 pi 的 agentDir/settings.json 的 shellPath 字段(ADR-0003 D6 预留的 shellPath 覆盖口子)。
+ * 与 models.json 同为启动派生产物,但 settings.json 由 pi 管理全局设置(lastChangelogVersion/defaultModel 等),
+ * 故用 read-modify-write:只注入或删除 shellPath,保留 pi 写的其他字段(不整对象覆盖)。
+ * - shellPath 非空 → 设字段,覆盖 pi 自动探测(Program Files\Git\bin\bash.exe → PATH)。
+ * - shellPath 空 → 删字段,让 pi 走自动探测(不写空串,避免 pi 把 "" 当 customShellPath 抛 "not found")。
+ * 仅在 buildAgentContext(启动)调用,运行时不写——避免与 pi 运行时写该文件的并发竞态;
+ * 故改 shellPath 后需重启 app 才生效(POST /api/config/shell 只写 config.json 真相源)。
+ */
+export function writeShellSettingsJson(agentDir: string, config: ConfigJson): string {
+  const settingsPath = path.join(agentDir, 'settings.json')
+  let current: Record<string, unknown> = {}
+  if (existsSync(settingsPath)) {
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(settingsPath, 'utf-8'))
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        current = parsed as Record<string, unknown>
+      }
+    } catch {
+      // 损坏视为空(派生产物,不致命;pi 自身加载 settings.json 也 catch 不外抛)
+    }
+  }
+  const next: Record<string, unknown> = { ...current }
+  if (config.shellPath?.trim()) {
+    next.shellPath = config.shellPath
+  } else {
+    delete next.shellPath
+  }
+  writeFileSync(settingsPath, JSON.stringify(next, null, 2), 'utf-8')
+  return settingsPath
 }
 
 /**

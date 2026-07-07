@@ -378,6 +378,7 @@ export async function createInteraction(
       hasApiKey: Boolean(cfg.apiKey),
       apiKeyMasked: maskApiKey(cfg.apiKey),
       exposedApiSpecs: cfg.exposedApiSpecs ?? [],
+      shellPath: cfg.shellPath ?? '',
     }
   })
 
@@ -579,6 +580,27 @@ export async function createInteraction(
     broadcast({ type: 'session_init', model: serializeModel(model) })
     req.log.info('LLM config reloaded and applied to all sessions')
     return reply.send({ ok: true })
+  })
+
+  // 修改 Git Bash 路径(ADR-0003 D6 预留的 shellPath 覆盖口子):只写 config.json 真相源,
+  // 不运行时写 pi 的 settings.json——派生只在 buildAgentContext(启动)做,避免与 pi 运行时写该文件的并发竞态。
+  // 改后需重启 app 生效:pi 的 settingsManager 在 session 创建时读 settings.json,已存在 session 不重读,
+  // 故无 LLM 那种冷重载机制(reloadAgentConfig 只管 model)。空字符串 = 清空,走 pi 自动探测。
+  app.post('/api/config/shell', async (req, reply) => {
+    const body = (req.body ?? {}) as { shellPath?: string }
+    if (typeof body.shellPath !== 'string') {
+      return reply.code(400).send({ error: '需提供 shellPath(字符串,空表示走自动探测)' })
+    }
+    await withFileLock(configPath, async () => {
+      const cfg = readConfig(configPath)
+      cfg.shellPath = body.shellPath as string
+      writeConfig(configPath, cfg)
+    })
+    req.log.info(
+      { shellPath: body.shellPath ? '<set>' : '<empty>' },
+      'shellPath saved, restart required',
+    )
+    return reply.send({ ok: true, restartRequired: true })
   })
 
   // 前端静态资源托管(ADR-0003 D2.1):prod/桌面形态同端口 serve web/dist,

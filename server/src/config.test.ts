@@ -7,6 +7,7 @@ import {
   generateModelsJson,
   readConfig,
   writeModelsJson,
+  writeShellSettingsJson,
   writeConfig,
   PROVIDER_KEY,
   type ConfigJson,
@@ -380,6 +381,157 @@ test('齐配置 config(火山 ark)→ ModelRegistry.find 成功(回归:老 schem
     if (model) {
       assert.equal(model.id, 'ark-code-latest')
     }
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true })
+  }
+})
+
+// ── shellPath(ADR-0003 D6 预留的 shellPath 覆盖口子)──
+
+test('readConfig: 缺 shellPath → 回退空串(走 pi 自动探测)', async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'zwiki-cfg-'))
+  try {
+    const cfgPath = path.join(tmp, 'config.json')
+    await fs.writeFile(
+      cfgPath,
+      JSON.stringify({
+        apiKey: 'k',
+        baseUrl: 'https://h/v1',
+        api: 'openai-completions',
+        model: 'gpt-4o',
+      }),
+      'utf-8',
+    )
+    const cfg = readConfig(cfgPath)
+    assert.equal(cfg.shellPath, '')
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true })
+  }
+})
+
+test('readConfig: shellPath 字符串 → 透传(完整路径原样保留)', async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'zwiki-cfg-'))
+  try {
+    const cfgPath = path.join(tmp, 'config.json')
+    await fs.writeFile(
+      cfgPath,
+      JSON.stringify({
+        apiKey: 'k',
+        baseUrl: 'https://h/v1',
+        api: 'openai-completions',
+        model: 'gpt-4o',
+        shellPath: 'C:\\Git\\bin\\bash.exe',
+      }),
+      'utf-8',
+    )
+    const cfg = readConfig(cfgPath)
+    assert.equal(cfg.shellPath, 'C:\\Git\\bin\\bash.exe')
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true })
+  }
+})
+
+test('readConfig: shellPath 非字符串(数字)→ 回退空串(边界校验)', async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'zwiki-cfg-'))
+  try {
+    const cfgPath = path.join(tmp, 'config.json')
+    await fs.writeFile(
+      cfgPath,
+      JSON.stringify({
+        apiKey: 'k',
+        baseUrl: 'https://h/v1',
+        api: 'openai-completions',
+        model: 'gpt-4o',
+        shellPath: 123,
+      }),
+      'utf-8',
+    )
+    const cfg = readConfig(cfgPath)
+    assert.equal(cfg.shellPath, '', '非字符串 shellPath 应回退空串')
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true })
+  }
+})
+
+test('writeShellSettingsJson: shellPath 非空 → 注入 settings.json', async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'zwiki-cfg-'))
+  try {
+    const agentDir = path.join(tmp, '.pi/agent')
+    await fs.mkdir(agentDir, { recursive: true })
+    const cfg = llmConfig({ shellPath: 'C:\\Git\\bin\\bash.exe' })
+    const written = writeShellSettingsJson(agentDir, cfg)
+    assert.equal(written, path.join(agentDir, 'settings.json'))
+    const onDisk = JSON.parse(await fs.readFile(written, 'utf-8'))
+    assert.equal(onDisk.shellPath, 'C:\\Git\\bin\\bash.exe')
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true })
+  }
+})
+
+test('writeShellSettingsJson: shellPath 空 → 删字段让 pi 走自动探测(不写空串)', async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'zwiki-cfg-'))
+  try {
+    const agentDir = path.join(tmp, '.pi/agent')
+    await fs.mkdir(agentDir, { recursive: true })
+    await fs.writeFile(
+      path.join(agentDir, 'settings.json'),
+      JSON.stringify({ shellPath: 'C:\\old\\bash.exe' }),
+      'utf-8',
+    )
+    const cfg = llmConfig({ shellPath: '' })
+    writeShellSettingsJson(agentDir, cfg)
+    const onDisk = JSON.parse(await fs.readFile(path.join(agentDir, 'settings.json'), 'utf-8'))
+    assert.equal(onDisk.shellPath, undefined, '空 shellPath 应删除字段,而非留空串')
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true })
+  }
+})
+
+test('writeShellSettingsJson: 保留 pi 写的其他字段(read-modify-write,不整对象覆盖)', async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'zwiki-cfg-'))
+  try {
+    const agentDir = path.join(tmp, '.pi/agent')
+    await fs.mkdir(agentDir, { recursive: true })
+    await fs.writeFile(
+      path.join(agentDir, 'settings.json'),
+      JSON.stringify({ lastChangelogVersion: '1.2.0', defaultModel: 'gpt-4o' }),
+      'utf-8',
+    )
+    const cfg = llmConfig({ shellPath: 'C:\\Git\\bin\\bash.exe' })
+    writeShellSettingsJson(agentDir, cfg)
+    const onDisk = JSON.parse(await fs.readFile(path.join(agentDir, 'settings.json'), 'utf-8'))
+    assert.equal(onDisk.shellPath, 'C:\\Git\\bin\\bash.exe')
+    assert.equal(onDisk.lastChangelogVersion, '1.2.0', 'pi 写的字段应保留')
+    assert.equal(onDisk.defaultModel, 'gpt-4o', 'pi 写的字段应保留')
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true })
+  }
+})
+
+test('writeShellSettingsJson: 文件损坏 → 视为空再注入(不抛错)', async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'zwiki-cfg-'))
+  try {
+    const agentDir = path.join(tmp, '.pi/agent')
+    await fs.mkdir(agentDir, { recursive: true })
+    await fs.writeFile(path.join(agentDir, 'settings.json'), '{not valid json', 'utf-8')
+    const cfg = llmConfig({ shellPath: 'C:\\Git\\bin\\bash.exe' })
+    writeShellSettingsJson(agentDir, cfg)
+    const onDisk = JSON.parse(await fs.readFile(path.join(agentDir, 'settings.json'), 'utf-8'))
+    assert.equal(onDisk.shellPath, 'C:\\Git\\bin\\bash.exe')
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true })
+  }
+})
+
+test('writeShellSettingsJson: 不 mutate 入参 config 对象', async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'zwiki-cfg-'))
+  try {
+    const agentDir = path.join(tmp, '.pi/agent')
+    await fs.mkdir(agentDir, { recursive: true })
+    const cfg = llmConfig({ shellPath: 'C:\\Git\\bin\\bash.exe' })
+    const original = cfg.shellPath
+    writeShellSettingsJson(agentDir, cfg)
+    assert.equal(cfg.shellPath, original, '入参 config 不应被改动')
   } finally {
     await fs.rm(tmp, { recursive: true, force: true })
   }

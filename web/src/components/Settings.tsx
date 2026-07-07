@@ -27,6 +27,7 @@ interface ConfigStatus {
   hasApiKey: boolean
   apiKeyMasked: string
   exposedApiSpecs: string[]
+  shellPath: string
 }
 
 export default function Settings() {
@@ -44,6 +45,8 @@ export default function Settings() {
   const [contextWindowInput, setContextWindowInput] = useState('')
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [showKey, setShowKey] = useState(false)
+  const [shellPathInput, setShellPathInput] = useState('')
+  const [savingShell, setSavingShell] = useState(false)
   const [newVaultName, setNewVaultName] = useState('')
   const [saving, setSaving] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -67,6 +70,7 @@ export default function Settings() {
       setModelInput(status.model || '')
       setContextWindowInput(String(status.contextWindow ?? 128000))
       setApiKeyInput(status.apiKey || '')
+      setShellPathInput(status.shellPath || '')
       setIngestActive(((await activeRes.json()) as { active: boolean }).active ?? false)
       const specsData = (await specsRes.json()) as { specs: ApiSpecEntry[]; exposed: string[] }
       setSpecs(specsData.specs ?? [])
@@ -124,6 +128,31 @@ export default function Settings() {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setSaving(false)
+    }
+  }
+
+  // 保存 Git Bash 路径(ADR-0003 D6 shellPath 覆盖):写 config.json,需重启 app 生效
+  // (pi settingsManager 在 session 创建时读 settings.json,运行中 session 不重读,无热重载)。
+  const saveShell = async () => {
+    setSavingShell(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const res = await fetch('/api/config/shell', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ shellPath: shellPathInput }),
+      })
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string }
+        setError(data.error ?? `HTTP ${res.status}`)
+      } else {
+        setNotice('Git Bash 路径已保存')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSavingShell(false)
     }
   }
 
@@ -373,6 +402,42 @@ export default function Settings() {
               disabled={canSaveLlm}
             >
               {saving ? '保存中…' : '保存并重载'}
+            </button>
+          </div>
+        </section>
+
+        {/* ── Git Bash 路径(可选,ADR-0003 D6 shellPath 覆盖)── */}
+        <section className="settings-section">
+          <h2 className="settings-section-title">Git Bash 路径(可选)</h2>
+          <p className="settings-warning">
+            pi 默认自动探测 bash:Windows 找 Git Bash(Program Files\Git\bin\bash.exe →
+            PATH),mac/linux 走 /bin/bash → PATH → sh。想指定其他 bash
+            可执行文件时填完整路径覆盖;留空走自动探测。
+          </p>
+          <div className="settings-field">
+            <label className="settings-label" htmlFor="shell-path">
+              bash.exe 路径
+            </label>
+            <div className="settings-control">
+              <input
+                id="shell-path"
+                className="settings-input"
+                type="text"
+                placeholder="C:\Program Files\Git\bin\bash.exe"
+                value={shellPathInput}
+                onChange={(e) => setShellPathInput(e.target.value)}
+                autoComplete="off"
+              />
+            </div>
+          </div>
+          <div className="settings-actions">
+            <button
+              type="button"
+              className="settings-btn primary"
+              onClick={() => void saveShell()}
+              disabled={savingShell}
+            >
+              {savingShell ? '保存中…' : '保存'}
             </button>
           </div>
         </section>
