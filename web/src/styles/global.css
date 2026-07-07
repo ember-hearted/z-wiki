@@ -96,49 +96,53 @@
   --header-stripe: rgba(236, 232, 223, 0.7);
 }
 
-/* ── Draft 主题（浅色：冷蓝图纸）───────────────────────────
+/* ── Draft 主题（浅色：暖纸陶土，对齐 Claude 文档浅色）─────────
    仅覆盖颜色 token；共享 token（font/spacing/radius/size）与
    --surface-shelf（书架恒深色展台，不随主题变）继承 :root，不动。
+   配色取自 Claude 文档 --background-light(#fdfdf7)/--primary(#0e0e0e)/
+   --accent-brand(hsl(15,63.1%,59.6%)≈#d97757)+Tailwind stone 调色板。
+   注意：浅深 accent 不同源——深色 Archive 仍靛青 #6b8fc7，切换主题时
+   accent 会从陶土橙跳靛青，是有意为之（浅色归 Anthropic 档案正色）。
    ─────────────────────────────────────────────────────── */
 :root[data-theme="draft"] {
-  /* 表面：浅灰冷调图纸底，层次靠略深一档 */
-  --surface: #eef0f4;
-  --surface-alt: #e4e7ed;
-  --surface-hover: #d8dce4;
-  --surface-code: #e0e3ea;
-  --surface-nav: rgba(228, 231, 237, 0.88);
-  /* 文字：深石板色，层级靠明度 */
-  --text: #2a2d35;
-  --text-bright: #15171c;
-  --text-muted: #5a5f6b;
-  --text-faint: #8b909c;
-  /* 强调：同源靛青（与 Archive 一致，切换不断裂）；alpha 在浅底略调 */
-  --accent: #6b8fc7;
-  --accent-soft: #8aa8d9;
-  --accent-bright: #a8c2ec;
-  --accent-bg: rgba(107, 143, 199, 0.12);
-  --accent-border: rgba(107, 143, 199, 0.5);
-  /* 描边：浅冷灰，原子化空心边框 */
-  --border: #c4c9d4;
-  --border-light: #d4d8e0;
+  /* 表面：暖米白图纸底（比 Claude 文档 #fdfdf7 降一档避免大面积刺眼），卡片用暖白提亮一档 */
+  --surface: #f0efea;
+  --surface-alt: #fdfdf7;
+  --surface-hover: #e8e6df;
+  --surface-code: #e8e6df;
+  --surface-nav: rgba(240, 239, 234, 0.88);
+  /* 文字：近黑暖调（stone-900 正文 / Claude --primary 标题），层级靠明度 */
+  --text: #1c1917;
+  --text-bright: #0e0e0e;
+  --text-muted: #57534e;
+  --text-faint: #78716c;
+  /* 强调：陶土橙（Claude 文档 --accent-brand）；alpha 在浅底略调 */
+  --accent: #d97757;
+  --accent-soft: #d4a27f;
+  --accent-bright: #e88a6a;
+  --accent-bg: rgba(217, 119, 87, 0.12);
+  --accent-border: rgba(217, 119, 87, 0.5);
+  /* 描边：暖灰 stone-200，原子化空心边框 */
+  --border: #e7e5e4;
+  --border-light: #f0eeec;
   --border-inner: rgba(0, 0, 0, 0.04);
-  --rule: #cdd2db;
-  /* 阴影：浅底更柔，冷调偏蓝黑 */
-  --shadow-sm: 0 1px 3px rgba(20, 25, 35, 0.08);
-  --shadow-md: 0 4px 14px rgba(20, 25, 35, 0.1);
-  --shadow-lg: 0 8px 32px rgba(20, 25, 35, 0.14);
-  --glow-accent: 0 0 0 1px var(--accent-border), 0 0 14px rgba(107, 143, 199, 0.22);
-  --selection: rgba(107, 143, 199, 0.3);
-  --card-hover: rgba(107, 143, 199, 0.05);
-  /* 代码高亮：浅底重调一套，保证对比度 */
+  --rule: #e7e5e4;
+  /* 阴影：浅底更柔，暖调偏褐黑（与陶土橙同色系，不偏蓝） */
+  --shadow-sm: 0 1px 3px rgba(60, 40, 30, 0.08);
+  --shadow-md: 0 4px 14px rgba(60, 40, 30, 0.1);
+  --shadow-lg: 0 8px 32px rgba(60, 40, 30, 0.14);
+  --glow-accent: 0 0 0 1px var(--accent-border), 0 0 14px rgba(217, 119, 87, 0.22);
+  --selection: rgba(217, 119, 87, 0.3);
+  --card-hover: rgba(217, 119, 87, 0.05);
+  /* 代码高亮：浅底重调一套，保证对比度；注释换暖灰 stone-500 呼应纸调 */
   --code-kw: #7c5cab;
   --code-str: #2f8a55;
   --code-num: #b06a2c;
   --code-fn: #3a6fb0;
-  --code-cmt: #8b909c;
+  --code-cmt: #78716c;
   --code-op: #8e5fa8;
-  /* header 警戒带：深石板，与浅 accent 形成对比 */
-  --header-stripe: rgba(20, 25, 35, 0.7);
+  /* header 警戒带：暖深褐，与陶土橙 accent 同色系深浅对比 */
+  --header-stripe: rgba(30, 22, 18, 0.7);
 }
 
 /* ── Reset ─────────────────────────────────────────────────────── */
@@ -490,7 +494,8 @@ code {
   flex-shrink: 0;
   border-bottom: 1px solid var(--border);
   background:
-    linear-gradient(180deg, rgba(107, 143, 199, 0.06) 0%, transparent 65%), var(--surface-alt);
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, transparent) 0%, transparent 65%),
+    var(--surface-alt);
   cursor: pointer;
   transition:
     background 0.45s ease,
@@ -499,10 +504,11 @@ code {
 
 .hero:hover {
   background:
-    linear-gradient(180deg, rgba(107, 143, 199, 0.14) 0%, transparent 70%), var(--surface-alt);
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 14%, transparent) 0%, transparent 70%),
+    var(--surface-alt);
   box-shadow:
-    inset 0 -24px 70px rgba(107, 143, 199, 0.12),
-    inset 0 0 0 1px rgba(107, 143, 199, 0.25);
+    inset 0 -24px 70px color-mix(in srgb, var(--accent) 12%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .hero-bg {
@@ -637,12 +643,12 @@ code {
   letter-spacing: -0.03em;
   line-height: var(--lh-hero);
   color: var(--text-bright);
-  text-shadow: 0 0 40px rgba(107, 143, 199, 0.14);
+  text-shadow: 0 0 40px color-mix(in srgb, var(--accent) 14%, transparent);
   transition: text-shadow 0.45s ease;
 }
 
 .hero:hover h1 {
-  text-shadow: 0 0 60px rgba(138, 168, 217, 0.35);
+  text-shadow: 0 0 60px color-mix(in srgb, var(--accent-soft) 35%, transparent);
 }
 
 .hero-title-line {
@@ -755,8 +761,8 @@ code {
   transform-origin: top center;
   transition: height 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
   box-shadow:
-    0 0 6px rgba(107, 143, 199, 0.35),
-    inset 0 0 2px rgba(168, 194, 236, 0.25);
+    0 0 6px color-mix(in srgb, var(--accent) 35%, transparent),
+    inset 0 0 2px color-mix(in srgb, var(--accent-bright) 25%, transparent);
   overflow: hidden;
 }
 
@@ -768,7 +774,12 @@ code {
   right: 0;
   top: -50%;
   height: 40%;
-  background: linear-gradient(180deg, transparent, rgba(168, 194, 236, 0.85) 50%, transparent);
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in srgb, var(--accent-bright) 85%, transparent) 50%,
+    transparent
+  );
   opacity: 0.8;
   animation: pull-string-flow 2.8s ease-in-out infinite;
 }
@@ -807,8 +818,8 @@ code {
   margin-top: 0.25rem;
   box-shadow:
     0 0 0 2px var(--surface-alt),
-    0 0 10px rgba(107, 143, 199, 0.55),
-    0 0 18px rgba(107, 143, 199, 0.25);
+    0 0 10px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 18px color-mix(in srgb, var(--accent) 25%, transparent);
   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -825,16 +836,20 @@ code {
     var(--accent-soft) 100%
   );
   box-shadow:
-    0 0 12px rgba(138, 168, 217, 0.65),
-    inset 0 0 3px rgba(168, 194, 236, 0.45);
+    0 0 12px color-mix(in srgb, var(--accent-soft) 65%, transparent),
+    inset 0 0 3px color-mix(in srgb, var(--accent-bright) 45%, transparent);
 }
 
 .hero:hover .drawer-pull-knob {
-  background: radial-gradient(circle at 35% 35%, #c8dcfa, var(--accent-bright));
+  background: radial-gradient(
+    circle at 35% 35%,
+    color-mix(in srgb, white 25%, var(--accent-bright)),
+    var(--accent-bright)
+  );
   box-shadow:
     0 0 0 2px var(--surface-alt),
-    0 0 14px rgba(168, 194, 236, 0.85),
-    0 0 28px rgba(168, 194, 236, 0.45);
+    0 0 14px color-mix(in srgb, var(--accent-bright) 85%, transparent),
+    0 0 28px color-mix(in srgb, var(--accent-bright) 45%, transparent);
 }
 
 @media (max-width: 768px) {
