@@ -1,6 +1,12 @@
 import { type ChangeEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { type ChatMessage, type Segment, useChat } from '../hooks/useChat'
 
+/** 格式化 token 数:>1k 显示为 1.2k,否则原值。 */
+function fmtTokens(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
+  return String(n)
+}
+
 /** 把工具入参提炼成一行可读摘要;read/edit/write 显示路径,其它工具退化成首个字符串字段。 */
 function describeArgs(tool: string, args: unknown): string | null {
   if (!args || typeof args !== 'object') return null
@@ -94,7 +100,7 @@ interface ChatPanelProps {
 }
 
 export default function ChatPanel({ onClose }: ChatPanelProps) {
-  const { messages, streaming, connected, send, upload } = useChat()
+  const { messages, streaming, connected, send, upload, model, turnStats, contextUsage } = useChat()
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -158,22 +164,59 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
   return (
     <div className="chat-panel">
       <div className="chat-drawer-header">
-        <span className="chat-status">{connected ? '● 已连接' : '○ 未连接'}</span>
-        <button type="button" className="chat-drawer-close" onClick={onClose} aria-label="关闭对话">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {/* 左上:连接状态 + 本轮 token(↑输入 ↓输出 🗄缓存读) */}
+        <div className="chat-status-left">
+          <span
+            className={`chat-conn-dot ${connected ? 'on' : 'off'}`}
+            title={connected ? '已连接' : '未连接'}
+          />
+          {turnStats && (
+            <span className="chat-turn-tokens" title="本轮 token(输入/输出/缓存读)">
+              <span>↑{fmtTokens(turnStats.input)}</span>
+              <span>↓{fmtTokens(turnStats.output)}</span>
+              <span>🗄{fmtTokens(turnStats.cacheRead)}</span>
+            </span>
+          )}
+        </div>
+        {/* 右上:模型名 + 上下文占用进度条 + 关闭按钮 */}
+        <div className="chat-status-right">
+          {model && (
+            <span className="chat-model-name" title={`${model.provider} · ${model.id}`}>
+              {model.name}
+            </span>
+          )}
+          {contextUsage?.percent != null && (
+            <span className="chat-ctx" title={`上下文 ${Math.round(contextUsage.percent)}%`}>
+              <span className="chat-ctx-track">
+                <span
+                  className="chat-ctx-fill"
+                  style={{ width: `${Math.min(100, contextUsage.percent)}%` }}
+                />
+              </span>
+              <span className="chat-ctx-pct">{Math.round(contextUsage.percent)}%</span>
+            </span>
+          )}
+          <button
+            type="button"
+            className="chat-drawer-close"
+            onClick={onClose}
+            aria-label="关闭对话"
           >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
       </div>
       <div className="chat-messages" ref={scrollRef}>
         {messages.length === 0

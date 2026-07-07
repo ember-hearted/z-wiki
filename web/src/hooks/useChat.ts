@@ -21,6 +21,32 @@ export interface ChatMessage {
   error?: boolean
 }
 
+/** 当前模型信息(WS session_init 推送,header 右上展示)。 */
+export interface ModelInfo {
+  id: string
+  name: string
+  provider: string
+  contextWindow: number
+}
+
+/** session 累计统计(agent_end 时随 done 推送;前端做差值得本轮)。 */
+export interface SessionStatsPayload {
+  tokens: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number }
+  cost: number
+  contextUsage: {
+    tokens: number | null
+    contextWindow: number
+    percent: number | null
+  } | null
+}
+
+/** 本轮(单次问答)token 消耗,由累计差值得出。 */
+export interface TurnStats {
+  input: number
+  output: number
+  cacheRead: number
+}
+
 interface ServerMsg {
   type:
     | 'text_delta'
@@ -34,6 +60,7 @@ interface ServerMsg {
     | 'ingest_done'
     | 'ingest_error'
     | 'vault_changed'
+    | 'session_init'
   text?: string
   tool?: string
   args?: unknown
@@ -42,6 +69,8 @@ interface ServerMsg {
   total?: number
   raw?: string
   vault?: { path: string; name: string }
+  model?: ModelInfo
+  stats?: SessionStatsPayload
 }
 
 let counter = 0
@@ -56,7 +85,18 @@ export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [streaming, setStreaming] = useState(false)
   const [connected, setConnected] = useState(false)
+  const [model, setModel] = useState<ModelInfo | null>(null)
+  const [turnStats, setTurnStats] = useState<TurnStats | null>(null)
+  const [contextUsage, setContextUsage] = useState<SessionStatsPayload['contextUsage']>(null)
   const wsRef = useRef<WebSocket | null>(null)
+  // 上次累计 tokens(用于 done 时算本轮差值);vault 切换/重连后重置
+  const prevTokensRef = useRef<{
+    input: number
+    output: number
+    cacheRead: number
+    cacheWrite: number
+    total: number
+  } | null>(null)
   // 当前正在流式累加的 assistant 回合 id
   const streamingIdRef = useRef<string | null>(null)
   // 组件是否仍挂载(卸载后不重连,避免 StrictMode 双挂载/路由离开后残留连接)
@@ -160,10 +200,27 @@ export function useChat() {
           })
           break
         }
-        case 'done':
+        case 'done': {
           streamingIdRef.current = null
           setStreaming(false)
+          // 累计 stats → 本轮差值;首次(无 prev)本轮 = 累计
+          if (msg.stats) {
+            const cur = msg.stats.tokens
+            const prev = prevTokensRef.current
+            setTurnStats(
+              prev
+                ? {
+                    input: cur.input - prev.input,
+                    output: cur.output - prev.output,
+                    cacheRead: cur.cacheRead - prev.cacheRead,
+                  }
+                : { input: cur.input, output: cur.output, cacheRead: cur.cacheRead },
+            )
+            prevTokensRef.current = cur
+            setContextUsage(msg.stats.contextUsage)
+          }
           break
+        }
         case 'kb_updated':
           // 知识库已重建,通知 useData 重拉 pages
           window.dispatchEvent(new CustomEvent('kb-updated', { detail: msg }))
@@ -193,6 +250,10 @@ export function useChat() {
           setMessages([])
           streamingIdRef.current = null
           setStreaming(false)
+          // 上下文随切库作废:本轮 token / 累计基准 / 上下文占用全部重置
+          setTurnStats(null)
+          setContextUsage(null)
+          prevTokensRef.current = null
           window.dispatchEvent(new CustomEvent('kb-updated'))
           break
         case 'error':
@@ -205,6 +266,9 @@ export function useChat() {
           break
         case 'system':
           // 连接系统消息,忽略
+          break
+        case 'session_init':
+          if (msg.model) setModel(msg.model)
           break
       }
     }
@@ -278,5 +342,5 @@ export function useChat() {
     }
   }, [])
 
-  return { messages, streaming, connected, send, upload }
+  return { messages, streaming, connected, send, upload, model, turnStats, contextUsage }
 }

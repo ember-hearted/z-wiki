@@ -18,6 +18,7 @@ import {
   createChatSession,
   createIngestSession,
   reloadAgentConfig,
+  resolveModel,
   withFileLock,
 } from './agentHost.js'
 import { API_SPECS } from './apiSpecs.js'
@@ -99,6 +100,39 @@ export async function createInteraction(
     }
   }
 
+  /** 序列化 model 给前端 header 显示(只取展示所需字段)。 */
+  function serializeModel(model: Model<Api>): {
+    id: string
+    name: string
+    provider: string
+    contextWindow: number
+  } {
+    return {
+      id: model.id,
+      name: model.name,
+      provider: model.provider,
+      contextWindow: model.contextWindow,
+    }
+  }
+
+  /** 序列化 session 累计统计(前端做差值得本轮;contextUsage 反映 session 总占用)。 */
+  function serializeStats(session: AgentSession): {
+    tokens: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number }
+    cost: number
+    contextUsage: {
+      tokens: number | null
+      contextWindow: number
+      percent: number | null
+    } | null
+  } {
+    const s = session.getSessionStats()
+    return {
+      tokens: s.tokens,
+      cost: s.cost,
+      contextUsage: s.contextUsage ?? null,
+    }
+  }
+
   /** 将 pi 的 AgentSessionEvent 转成前端可消费的简化消息,推给 WS。 */
   function relayEvent(socket: WebSocket, event: unknown): void {
     const e = event as {
@@ -125,11 +159,16 @@ export async function createInteraction(
           JSON.stringify({ type: 'tool_end', tool: e.toolName, error: Boolean(e.isError) }),
         )
         break
-      case 'agent_end':
-        socket.send(JSON.stringify({ type: 'done' }))
+      case 'agent_end': {
+        // agent_end 发生在 prompt 期间,session 必在 chatSessions 中(close 才 dispose);
+        // 仍用 ?. 兜底,stats 缺失时退回裸 done,前端不更新 token 面板。
+        const session = chatSessions.get(socket)
+        const stats = session ? serializeStats(session) : undefined
+        socket.send(JSON.stringify(stats ? { type: 'done', stats } : { type: 'done' }))
         // 闭环刷新:agent 写完 wiki/output 后自动 build,有变更推 kb_updated
         void triggerBuild(socket)
         break
+      }
       default:
         break
     }
@@ -223,6 +262,11 @@ export async function createInteraction(
       return
     }
     chatSessions.set(socket, session)
+    // 推初始 session 信息:模型名 + 上下文窗口,供 header 右上显示。
+    // 与 createChatSession 内部用同一 resolveModel(agentCtx),model 引用一致。
+    socket.send(
+      JSON.stringify({ type: 'session_init', model: serializeModel(resolveModel(agentCtx)) }),
+    )
 
     socket.on('message', async (raw: Buffer) => {
       const msg = JSON.parse(raw.toString()) as { text?: string }
@@ -510,6 +554,8 @@ export async function createInteraction(
     // 遍历所有活跃 session(chat + ingest)换 model,不丢上下文(pi setModel 不清 messages)
     await applyModelToSessions([...chatSessions.values(), ...ingestSessions], model)
     broadcast({ type: 'config_reloaded' })
+    // 广播新 model 信息,前端 header 更新模型名/上下文窗口(model 已 reload,引用为新对象)
+    broadcast({ type: 'session_init', model: serializeModel(model) })
     req.log.info('LLM config reloaded and applied to all sessions')
     return reply.send({ ok: true })
   })
