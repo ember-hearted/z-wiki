@@ -62,6 +62,16 @@ const ARCHIVE_ACCENTS = [
   '#9c8b6a', // 暗金褐
 ]
 
+// 陶土色板：浅暖调，Draft 浅书皮上对比适中（ADR-0006 D3'）
+const DRAFT_ACCENTS = [
+  '#d97757', // 陶土橙（主，对齐 Draft accent）
+  '#c66b5a', // 砖红
+  '#b88a5a', // 赭石
+  '#8a8a5a', // 橄榄
+  '#5a8a8a', // 鸭蛋青（冷色平衡，避免全暖偏腻）
+  '#8a6a7a', // 紫褐
+]
+
 // 每套主题的书配色（ADR-0006 D3'：书皮/纸边/accent 色板/灯光随主题）
 interface BookThemeColors {
   darkBase: string // 书皮底色
@@ -82,13 +92,13 @@ const ARCHIVE_COLORS: BookThemeColors = {
   rimLightColor: 0x6b8fc7,
 }
 
-// Draft：slice 02 占位（复用 Archive 书皮/纸边/色板，仅 topAccent + 灯光作 Draft 标记可观察）
-// slice 03 填真陶土配色（kraft 书皮 #e4d1c2 + 暖白纸边 #fdfdf7 + 陶土色板）
+// Draft：暖纸陶土配色（ADR-0006 D3'，取自 Claude 文档材质色变量）
+// kraft 牛皮纸书皮 + 暖白纸边 + 陶土色板；层次:页面 #f0efea < 展台 #eeece6 < 书皮 #e4d1c2
 const DRAFT_COLORS: BookThemeColors = {
-  darkBase: DARK_BASE,
-  paper: PAPER_CREAM,
-  accents: ARCHIVE_ACCENTS,
-  topAccent: '#d97757',
+  darkBase: '#e4d1c2', // kraft 牛皮纸书皮
+  paper: '#fdfdf7', // 暖白纸页（书顶/书底/书边）
+  accents: DRAFT_ACCENTS,
+  topAccent: '#d97757', // 陶土橙（对齐 Draft accent）
   dirLightIntensity: 0.8,
   rimLightColor: 0xd97757,
 }
@@ -105,6 +115,16 @@ function hashAccent(str: string, accents: string[]): string {
     hash = str.charCodeAt(i) + ((hash << 5) - hash)
   }
   return accents[Math.abs(hash) % accents.length]
+}
+
+// 按背景明暗返回可读文字色：浅底→深字，深底→白字（slice 03：Draft 浅书皮需深字）
+function contrastColor(bg: string): string {
+  const num = parseInt(bg.replace('#', ''), 16)
+  const r = (num >> 16) & 0xff
+  const g = (num >> 8) & 0xff
+  const b = num & 0xff
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.55 ? '#1c1917' : '#fff'
 }
 
 function shadeColor(color: string, percent: number): string {
@@ -134,6 +154,7 @@ function makeCoverTexture(data: {
   // 深色底
   ctx.fillStyle = data.dark
   ctx.fillRect(0, 0, 512, 700)
+  const textColor = contrastColor(data.dark) // 按底色明暗选可读文字色（slice 03）
 
   // 警示胶带
   ctx.save()
@@ -180,7 +201,7 @@ function makeCoverTexture(data: {
   ctx.fillText(data.meta, 420, 78)
 
   // 书名（单行自适应：54px 起，按宽度等比缩，下限 36px，仍超则末尾省略）
-  ctx.fillStyle = '#fff'
+  ctx.fillStyle = textColor
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   const TITLE_MAX_W = 430
@@ -203,7 +224,7 @@ function makeCoverTexture(data: {
   ctx.shadowBlur = 12
   ctx.fillText(titleText, 256, 310)
   ctx.shadowBlur = 0
-  ctx.fillStyle = 'rgba(255,255,255,0.75)'
+  ctx.fillStyle = textColor
   ctx.font = '30px sans-serif'
   ctx.fillText(data.subtitle, 256, 358)
 
@@ -224,6 +245,7 @@ function makeCoverTexture(data: {
 function makeBackTexture(data: {
   title: string
   accent: string
+  dark: string
   backText: string
   meta: string
 }): THREE.CanvasTexture {
@@ -231,16 +253,17 @@ function makeBackTexture(data: {
   canvas.width = 512
   canvas.height = 700
   const ctx = ctx2d(canvas)
+  const textColor = contrastColor(data.dark)
 
-  ctx.fillStyle = '#0c0c12'
+  ctx.fillStyle = data.dark
   ctx.fillRect(0, 0, 512, 700)
   ctx.fillStyle = data.accent
   ctx.fillRect(0, 0, 512, 12)
-  ctx.fillStyle = '#fff'
+  ctx.fillStyle = textColor
   ctx.font = 'bold 40px sans-serif'
   ctx.textAlign = 'left'
   ctx.fillText(data.title, 40, 90)
-  ctx.fillStyle = 'rgba(255,255,255,0.75)'
+  ctx.fillStyle = textColor
   ctx.font = '26px sans-serif'
 
   // 自动换行
@@ -273,14 +296,16 @@ function makeBackTexture(data: {
 function makeSpineTexture(data: {
   title: string
   accent: string
+  dark: string
   meta: string
 }): THREE.CanvasTexture {
   const canvas = document.createElement('canvas')
   canvas.width = 128
   canvas.height = 700
   const ctx = ctx2d(canvas)
+  const textColor = contrastColor(data.dark)
 
-  ctx.fillStyle = '#0f0f15'
+  ctx.fillStyle = data.dark
   ctx.fillRect(0, 0, 128, 700)
   ctx.strokeStyle = 'rgba(255,255,255,0.15)'
   ctx.lineWidth = 2
@@ -302,7 +327,7 @@ function makeSpineTexture(data: {
   ctx.save()
   ctx.translate(64, 360)
   ctx.rotate(-Math.PI / 2)
-  ctx.fillStyle = '#fff'
+  ctx.fillStyle = textColor
   ctx.font = 'bold 44px sans-serif'
   ctx.textAlign = 'center'
   ctx.fillText(data.title, 0, 14)
@@ -497,11 +522,13 @@ export default function BookShelf3D({ pages, onBookClick, onIntroDone, theme }: 
           spine: makeSpineTexture({
             title: page.title,
             accent: accentHex,
+            dark: colors.darkBase,
             meta: page.type === 'wiki' ? 'WIKI' : 'REPORT',
           }),
           back: makeBackTexture({
             title: page.title,
             accent: accentHex,
+            dark: colors.darkBase,
             backText: page.summary || page.title,
             meta: page.updated,
           }),
