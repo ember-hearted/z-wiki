@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import gsap from 'gsap'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import type { PageMeta } from '../hooks/useData'
+import type { Theme } from '../hooks/useTheme'
 
 /* ═══════════════════════════════════════════════════
    BookShelf3D — Three.js 圆柱形 3D 书架
@@ -13,6 +14,7 @@ interface BookShelf3DProps {
   pages: PageMeta[]
   onBookClick: (stem: string) => void
   onIntroDone?: () => void
+  theme: Theme
 }
 
 // ---------- 配置 ----------
@@ -60,14 +62,49 @@ const ARCHIVE_ACCENTS = [
   '#9c8b6a', // 暗金褐
 ]
 
+// 每套主题的书配色（ADR-0006 D3'：书皮/纸边/accent 色板/灯光随主题）
+interface BookThemeColors {
+  darkBase: string // 书皮底色
+  paper: string // 纸边（书顶/书底/书边）
+  accents: string[] // 书 accent 色板（按书名 hash 分配）
+  topAccent: string // 书顶书底装饰线 accent
+  dirLightIntensity: number // 主光强度
+  rimLightColor: number // rim 点光颜色
+}
+
+// Archive：现有深色舞台 + 靛青封面色板（不动）
+const ARCHIVE_COLORS: BookThemeColors = {
+  darkBase: DARK_BASE,
+  paper: PAPER_CREAM,
+  accents: ARCHIVE_ACCENTS,
+  topAccent: '#6b8fc7',
+  dirLightIntensity: 1.1,
+  rimLightColor: 0x6b8fc7,
+}
+
+// Draft：slice 02 占位（复用 Archive 书皮/纸边/色板，仅 topAccent + 灯光作 Draft 标记可观察）
+// slice 03 填真陶土配色（kraft 书皮 #e4d1c2 + 暖白纸边 #fdfdf7 + 陶土色板）
+const DRAFT_COLORS: BookThemeColors = {
+  darkBase: DARK_BASE,
+  paper: PAPER_CREAM,
+  accents: ARCHIVE_ACCENTS,
+  topAccent: '#d97757',
+  dirLightIntensity: 0.8,
+  rimLightColor: 0xd97757,
+}
+
+function colorsFor(theme: Theme): BookThemeColors {
+  return theme === 'draft' ? DRAFT_COLORS : ARCHIVE_COLORS
+}
+
 // ---------- 颜色工具 ----------
 
-function hashAccent(str: string): string {
+function hashAccent(str: string, accents: string[]): string {
   let hash = 0
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash)
   }
-  return ARCHIVE_ACCENTS[Math.abs(hash) % ARCHIVE_ACCENTS.length]
+  return accents[Math.abs(hash) % accents.length]
 }
 
 function shadeColor(color: string, percent: number): string {
@@ -393,14 +430,39 @@ interface BookSkin {
   back: THREE.CanvasTexture
 }
 
+// 换皮句柄的类型：主 useEffect 写入，副 useEffect([theme]) 读出换 texture/灯光(ADR-0006 D2')
+interface SwappableBook {
+  dataIndex: number
+  coverMat: THREE.ShaderMaterial
+  spineMat: THREE.MeshStandardMaterial
+  backMat: THREE.MeshStandardMaterial
+  topMat: THREE.MeshStandardMaterial
+  edgeMat: THREE.MeshStandardMaterial
+}
+
+interface SceneHandles {
+  allSlots: SwappableBook[]
+  skinPools: Record<Theme, BookSkin[]>
+  topBotTexs: Record<Theme, THREE.CanvasTexture>
+  edgeTexs: Record<Theme, THREE.CanvasTexture>
+  dirLight: THREE.DirectionalLight
+  rimLight: THREE.PointLight
+}
+
 /* ═══════════════════════════════════════════════════
    React 组件
    ═══════════════════════════════════════════════════ */
 
-export default function BookShelf3D({ pages, onBookClick, onIntroDone }: BookShelf3DProps) {
+export default function BookShelf3D({ pages, onBookClick, onIntroDone, theme }: BookShelf3DProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const onIntroDoneRef = useRef(onIntroDone)
   onIntroDoneRef.current = onIntroDone
+
+  // 换皮句柄：主 useEffect 写入，副 useEffect([theme]) 读出换 texture/灯光，不重建场景(ADR-0006 D2')
+  const sceneRef = useRef<SceneHandles | null>(null)
+  // 当前主题 ref：applySkin（滚动虚拟化换皮）读它选对应 skinPool；每次 render 同步更新
+  const themeRef = useRef<Theme>(theme)
+  themeRef.current = theme
 
   useEffect(() => {
     const container = containerRef.current
@@ -418,36 +480,50 @@ export default function BookShelf3D({ pages, onBookClick, onIntroDone }: BookShe
     const virtual = N > slots // 是否启用换皮虚拟化
     const step = ANGLE_STEP // 槽位角步长（浅弧，非闭合圆）
 
-    // ---------- 预生成纹理池（每本一套） ----------
-    const skinPool: BookSkin[] = sorted.map((page) => {
-      const accentHex = hashAccent(page.title)
-      return {
-        cover: makeCoverTexture({
-          title: page.title,
-          subtitle: page.type === 'wiki' ? '知识库' : '报告与分析',
-          accent: accentHex,
-          dark: DARK_BASE,
-          paper: PAPER_CREAM,
-          backText: page.summary || page.title,
-          meta: page.type === 'wiki' ? 'WIKI' : 'REPORT',
-        }),
-        spine: makeSpineTexture({
-          title: page.title,
-          accent: accentHex,
-          meta: page.type === 'wiki' ? 'WIKI' : 'REPORT',
-        }),
-        back: makeBackTexture({
-          title: page.title,
-          accent: accentHex,
-          backText: page.summary || page.title,
-          meta: page.updated,
-        }),
-      }
-    })
+    // ---------- 预生成两套纹理池（archive + draft，ADR-0006 D2'） ----------
+    const makeSkinPool = (colors: BookThemeColors): BookSkin[] =>
+      sorted.map((page) => {
+        const accentHex = hashAccent(page.title, colors.accents)
+        return {
+          cover: makeCoverTexture({
+            title: page.title,
+            subtitle: page.type === 'wiki' ? '知识库' : '报告与分析',
+            accent: accentHex,
+            dark: colors.darkBase,
+            paper: colors.paper,
+            backText: page.summary || page.title,
+            meta: page.type === 'wiki' ? 'WIKI' : 'REPORT',
+          }),
+          spine: makeSpineTexture({
+            title: page.title,
+            accent: accentHex,
+            meta: page.type === 'wiki' ? 'WIKI' : 'REPORT',
+          }),
+          back: makeBackTexture({
+            title: page.title,
+            accent: accentHex,
+            backText: page.summary || page.title,
+            meta: page.updated,
+          }),
+        }
+      })
+    const skinPools: Record<Theme, BookSkin[]> = {
+      archive: makeSkinPool(ARCHIVE_COLORS),
+      draft: makeSkinPool(DRAFT_COLORS),
+    }
+    const skinPool = skinPools[theme] // 初始用当前主题；主题切换由副 useEffect 换
 
-    // 通用纹理（不依赖书名）
-    const edgeTex = makeEdgeTexture(PAPER_CREAM)
-    const topBotTex = makeTopBottomTexture(PAPER_CREAM, '#6b8fc7')
+    // 通用纹理（不依赖书名，两套）
+    const edgeTexs: Record<Theme, THREE.CanvasTexture> = {
+      archive: makeEdgeTexture(ARCHIVE_COLORS.paper),
+      draft: makeEdgeTexture(DRAFT_COLORS.paper),
+    }
+    const topBotTexs: Record<Theme, THREE.CanvasTexture> = {
+      archive: makeTopBottomTexture(ARCHIVE_COLORS.paper, ARCHIVE_COLORS.topAccent),
+      draft: makeTopBottomTexture(DRAFT_COLORS.paper, DRAFT_COLORS.topAccent),
+    }
+    const edgeTex = edgeTexs[theme]
+    const topBotTex = topBotTexs[theme]
     const sharedGeo = new RoundedBoxGeometry(BOOK_W, BOOK_H, BOOK_D, ROUND_S, ROUND_R)
 
     // ---------- 场景 ----------
@@ -469,17 +545,18 @@ export default function BookShelf3D({ pages, onBookClick, onIntroDone }: BookShe
     container.appendChild(renderer.domElement)
 
     // ---------- 光照 ----------
+    const initColors = colorsFor(theme)
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.45)
     scene.add(ambientLight)
 
-    const dirLight = new THREE.DirectionalLight(0xfff5e6, 1.1)
+    const dirLight = new THREE.DirectionalLight(0xfff5e6, initColors.dirLightIntensity)
     dirLight.position.set(5, 8, 7)
     dirLight.castShadow = true
     dirLight.shadow.mapSize.width = 1024
     dirLight.shadow.mapSize.height = 1024
     scene.add(dirLight)
 
-    const rimLight = new THREE.PointLight(0x6b8fc7, 0.9, 35)
+    const rimLight = new THREE.PointLight(initColors.rimLightColor, 0.9, 35)
     rimLight.position.set(-6, 3, 8)
     scene.add(rimLight)
 
@@ -496,6 +573,8 @@ export default function BookShelf3D({ pages, onBookClick, onIntroDone }: BookShe
       coverMat: THREE.ShaderMaterial
       spineMat: THREE.MeshStandardMaterial
       backMat: THREE.MeshStandardMaterial
+      topMat: THREE.MeshStandardMaterial
+      edgeMat: THREE.MeshStandardMaterial
       frontUniforms: {
         uTexture: THREE.IUniform
         uMouse: THREE.IUniform
@@ -513,7 +592,7 @@ export default function BookShelf3D({ pages, onBookClick, onIntroDone }: BookShe
     const allSlots: BookSlot[] = []
 
     function applySkin(book: BookSlot, dataIndex: number) {
-      const skin = skinPool[dataIndex]
+      const skin = skinPools[themeRef.current][dataIndex]
       book.coverMat.uniforms.uTexture.value = skin.cover
       book.spineMat.map = skin.spine
       book.spineMat.needsUpdate = true
@@ -568,6 +647,8 @@ export default function BookShelf3D({ pages, onBookClick, onIntroDone }: BookShe
         coverMat,
         spineMat,
         backMat,
+        topMat,
+        edgeMat,
         frontUniforms,
         slotIndex,
         dataIndex,
@@ -1173,6 +1254,16 @@ export default function BookShelf3D({ pages, onBookClick, onIntroDone }: BookShe
       renderer.render(scene, camera)
     }
 
+    // 暴露换皮句柄给副 useEffect(ADR-0006 D2')：主题切换时换 skin/topBotTex/edgeTex + 灯光，不重建场景
+    sceneRef.current = {
+      allSlots,
+      skinPools,
+      topBotTexs,
+      edgeTexs,
+      dirLight,
+      rimLight,
+    }
+
     animate()
 
     // ---------- 清理 ----------
@@ -1194,21 +1285,50 @@ export default function BookShelf3D({ pages, onBookClick, onIntroDone }: BookShe
       renderer.dispose()
 
       sharedGeo.dispose()
-      edgeTex.dispose()
-      topBotTex.dispose()
-      skinPool.forEach((skin) => {
-        skin.cover.dispose()
-        skin.spine.dispose()
-        skin.back.dispose()
-      })
+      Object.values(edgeTexs).forEach((t) => t.dispose())
+      Object.values(topBotTexs).forEach((t) => t.dispose())
+      Object.values(skinPools)
+        .flat()
+        .forEach((skin) => {
+          skin.cover.dispose()
+          skin.spine.dispose()
+          skin.back.dispose()
+        })
       allSlots.forEach((book) => {
         book.coverMat.dispose()
         book.spineMat.dispose()
         book.backMat.dispose()
+        book.topMat.dispose()
+        book.edgeMat.dispose()
       })
       renderer.renderLists.dispose()
+      sceneRef.current = null
     }
   }, [pages, onBookClick])
+
+  // 主题切换：换 skin/topBotTex/edgeTex + 灯光，不重建场景(ADR-0006 D2')
+  useEffect(() => {
+    const handles = sceneRef.current
+    if (!handles) return
+    const colors = colorsFor(theme)
+    const pool = handles.skinPools[theme]
+    const topBot = handles.topBotTexs[theme]
+    const edge = handles.edgeTexs[theme]
+    handles.allSlots.forEach((book) => {
+      const skin = pool[book.dataIndex]
+      book.coverMat.uniforms.uTexture.value = skin.cover
+      book.spineMat.map = skin.spine
+      book.spineMat.needsUpdate = true
+      book.backMat.map = skin.back
+      book.backMat.needsUpdate = true
+      book.topMat.map = topBot
+      book.topMat.needsUpdate = true
+      book.edgeMat.map = edge
+      book.edgeMat.needsUpdate = true
+    })
+    handles.dirLight.intensity = colors.dirLightIntensity
+    handles.rimLight.color.setHex(colors.rimLightColor)
+  }, [theme])
 
   return <div ref={containerRef} className="book-shelf-3d" />
 }

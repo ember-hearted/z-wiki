@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { PageMeta } from '../hooks/useData'
+import { useTheme } from '../hooks/useTheme'
 import BottomDrawer from './BottomDrawer'
 
 // three + gsap 较重，懒加载拆出独立 chunk，首屏先渲染 hero 再异步挂载书架
@@ -12,6 +13,7 @@ interface HomeProps {
 
 export default function Home({ pages }: HomeProps) {
   const navigate = useNavigate()
+  const { theme } = useTheme()
   const total = pages.length
   const archiveNo = String(total).padStart(3, '0')
 
@@ -86,7 +88,7 @@ export default function Home({ pages }: HomeProps) {
 
       <div className="home-shelf-area">
         <Suspense fallback={<div className="shelf-loading" />}>
-          <BookShelf3D pages={pages} onBookClick={onBookClick} />
+          <BookShelf3D pages={pages} onBookClick={onBookClick} theme={theme} />
         </Suspense>
         <BottomDrawer
           pages={pages}
