@@ -275,8 +275,6 @@ code {
 }
 
 .header-inner {
-  max-width: var(--content-w);
-  margin: 0 auto;
   height: 100%;
   display: flex;
   align-items: center;
@@ -324,6 +322,7 @@ code {
   gap: var(--sp-2);
   font-size: var(--fs-sm);
   color: var(--text-faint);
+  flex: 1;
   min-width: 0;
   overflow: hidden;
 }
@@ -2079,7 +2078,7 @@ body.home-no-scroll {
   gap: var(--sp-2);
   font-family: var(--mono);
   font-size: var(--fs-xs);
-  color: var(--text-faint);
+  color: var(--text-muted);
   letter-spacing: 0.04em;
 }
 .chat-conn-dot {
@@ -2115,7 +2114,7 @@ body.home-no-scroll {
   font-family: var(--mono);
   font-size: var(--fs-xs);
   letter-spacing: 0.02em;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 /* 图标 + 数值成对:箭头/闪电与数字垂直居中 */
 .chat-token-pair {
@@ -2133,7 +2132,7 @@ body.home-no-scroll {
 .chat-model-name {
   font-family: var(--mono);
   font-size: var(--fs-xs);
-  color: var(--text-faint);
+  color: var(--text-muted);
   max-width: 10em;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2161,7 +2160,7 @@ body.home-no-scroll {
 .chat-ctx-pct {
   font-family: var(--mono);
   font-size: var(--fs-xs);
-  color: var(--text-faint);
+  color: var(--text-muted);
   white-space: nowrap;
 }
 .chat-drawer-close {
@@ -2408,7 +2407,7 @@ body.home-no-scroll {
   transition: box-shadow 0.15s;
 }
 .chat-input::placeholder {
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 .chat-input:focus {
   /* composer 无独立 border,focus 用 inset ring 反馈,不挤占文字 */
@@ -2419,10 +2418,12 @@ body.home-no-scroll {
   border: 1px solid var(--accent-border);
   border-radius: var(--r-md);
   background: var(--accent);
-  color: var(--surface);
+  /* accent 两主题均为中明度，--surface 明度与之过近会融合；固定深字保证对比 */
+  color: #1c1917;
   cursor: pointer;
   font-family: var(--mono);
   font-size: var(--fs-xs);
+  font-weight: 600;
   letter-spacing: 0.04em;
   transition:
     background 0.15s,
@@ -2758,7 +2759,8 @@ body.chat-resizing {
 }
 
 /* ── Header 主题开关（设置按钮右侧 pill 滑动开关）──────────────
-   52×28 pill，月左日右。暗(archive)→滑块在左盖月，亮(draft)→在右盖日。
+   52×28 pill，日左月右。暗(archive)→滑块在左盖日(目标)，露月(当前)；
+   亮(draft)→在右盖月(目标)，露日(当前)。knob 位置=当前主题(左暗右亮)。
    纯图标无文字。hover/focus 调性对齐 .header-settings-btn。
    ─────────────────────────────────────────────────────── */
 .theme-toggle {
@@ -2796,19 +2798,26 @@ body.chat-resizing {
   align-items: center;
   justify-content: center;
   flex: 1;
-  opacity: 0.45;
-  transition: opacity 0.2s;
+  color: var(--text-muted);
+  opacity: 0.6;
+  transition:
+    opacity 0.2s,
+    color 0.2s;
 }
 
 .theme-toggle[aria-checked="false"] .theme-toggle-icon.moon {
   opacity: 1;
+  color: var(--accent-bright);
 }
 
 .theme-toggle[aria-checked="true"] .theme-toggle-icon.sun {
   opacity: 1;
+  color: var(--accent-bright);
 }
 
-/* 滑块：浮于图标上方。暗→左(盖月)，亮→右移 26px(盖日) */
+/* 滑块：浮于图标上方。暗→左(盖日·目标)，露月(当前)；亮→右移 26px(盖月·目标)，露日(当前)。
+   暗主题：accent 掺黑降明度(深蓝)，比 pill 更暗形成对比；
+   浅主题：accent 掺 --text-faint 降饱和(暖棕)，不吸睛。 */
 .theme-toggle-knob {
   position: absolute;
   top: 3px;
@@ -2816,10 +2825,16 @@ body.chat-resizing {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: var(--surface);
+  background: color-mix(in srgb, var(--accent) 50%, #000);
   border: 1px solid var(--accent-border);
-  box-shadow: var(--shadow-sm);
+  box-shadow:
+    var(--shadow-sm),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+:root[data-theme="draft"] .theme-toggle-knob {
+  background: color-mix(in srgb, var(--accent) 60%, var(--text-faint));
 }
 
 .theme-toggle[aria-checked="true"] .theme-toggle-knob {
