@@ -3056,3 +3056,87 @@ body.chat-resizing {
     padding-top: 0;
   }
 }
+
+/* ── Header 关于按钮(设置按钮左侧,信息图标,复用设置按钮风格)────────── */
+.header-about-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+  flex-shrink: 0;
+}
+.header-about-btn:hover {
+  background: var(--accent-bg);
+  border-color: var(--border);
+  color: var(--accent-bright);
+}
+.header-about-btn.active {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent-bright);
+}
+
+/* ── 关于页(开源许可声明,ADR-0007 决策 4)────────────────── */
+.about-page {
+  max-width: var(--content-w);
+  margin: 0 auto;
+  padding: var(--sp-10) var(--sp-4) var(--sp-16);
+}
+.about-page h1 {
+  font-family: var(--mono);
+  font-size: var(--fs-3xl);
+  font-weight: 700;
+  color: var(--text-bright);
+  margin: 0 0 var(--sp-6);
+  letter-spacing: 0.02em;
+}
+.about-section {
+  padding: var(--sp-5);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2xl);
+  margin-bottom: var(--sp-6);
+}
+.about-section h2 {
+  font-family: var(--mono);
+  font-size: var(--fs-base);
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 var(--sp-3);
+  letter-spacing: 0.04em;
+}
+.about-section p {
+  font-size: var(--fs-sm);
+  color: var(--text);
+  line-height: 1.7;
+  margin: 0 0 var(--sp-3);
+}
+.about-section a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.about-section a:hover {
+  text-decoration: underline;
+}
+.about-back {
+  font-size: var(--fs-sm);
+  color: var(--accent);
+  text-decoration: none;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--r-md);
+  transition: background 0.15s;
+}
+.about-back:hover {
+  background: var(--accent-bg);
+}
