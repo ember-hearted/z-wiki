@@ -2543,6 +2543,36 @@ body.home-no-scroll {
   /* composer 无独立 border,focus 用 inset ring 反馈,不挤占文字 */
   box-shadow: inset 0 0 0 1px var(--accent-border);
 }
+
+/* ingest 进度角标:chat-input-row 右上角 absolute 一行浮层。
+   复用 chat-ctx-track/fill/pct 视觉(48px×4px 条 + accent fill + mono pct);
+   failed 时 fill 覆盖为红(与 chat-tool-error 同色)。出现时 textarea 加 .has-ingest 避让。*/
+.chat-ingest {
+  position: absolute;
+  /* top 避开顶部 6px resize handle 区,与 textarea 文字对齐 */
+  top: calc(var(--sp-2) + 6px);
+  right: var(--sp-3);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  z-index: 2;
+  /* 角标仅展示,不挡 textarea 交互 */
+  pointer-events: none;
+}
+.chat-ingest-label {
+  white-space: nowrap;
+}
+.chat-ingest-failed .chat-ctx-fill {
+  background: #d98a7a;
+}
+/* 角标出现时 textarea 右侧避让(label + 48px track + pct),避免文字被角标遮挡 */
+.chat-input.has-ingest {
+  padding-right: 132px;
+}
+
 /* 发送按钮(图标):向右箭矢,无填充无边框 */
 .chat-send {
   display: flex;

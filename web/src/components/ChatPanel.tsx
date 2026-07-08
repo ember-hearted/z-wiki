@@ -1,7 +1,13 @@
 import { ALLOWED_UPLOAD_EXTS } from '@z-wiki/server/uploadExts'
 import { mdToHtml } from '@z-wiki/server/markdown'
 import { type ChangeEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { type ChatMessage, type Segment, type TurnStats, useChat } from '../hooks/useChat'
+import {
+  type ChatMessage,
+  type IngestPhase,
+  type Segment,
+  type TurnStats,
+  useChat,
+} from '../hooks/useChat'
 
 /** 格式化 token 数:>1k 显示为 1.2k,否则原值。 */
 function fmtTokens(n: number): string {
@@ -14,6 +20,20 @@ function cacheHitRate(t: TurnStats): number {
   const denom = t.input + t.cacheRead
   if (denom === 0) return 0
   return Math.round((t.cacheRead / denom) * 100)
+}
+
+/** ingest 角标阶段标签:uploading/compiling/done/failed -> 上传中/编译中/已更新/失败。 */
+function labelForIngest(phase: IngestPhase): string {
+  switch (phase) {
+    case 'uploading':
+      return '上传中'
+    case 'compiling':
+      return '编译中'
+    case 'done':
+      return '已更新'
+    case 'failed':
+      return '失败'
+  }
 }
 
 /** 状态行图标:14px stroke,与关闭按钮同风格(无 fill)。 */
@@ -131,7 +151,8 @@ interface ChatPanelProps {
 }
 
 export default function ChatPanel({ onClose }: ChatPanelProps) {
-  const { messages, streaming, connected, send, upload, model, turnStats, contextUsage } = useChat()
+  const { messages, streaming, connected, send, upload, model, turnStats, contextUsage, ingest } =
+    useChat()
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -237,6 +258,17 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
         ref={composerRef}
         style={composerHeight ? { height: `${composerHeight}px` } : undefined}
       >
+        {ingest && (
+          <div className={`chat-ingest chat-ingest-${ingest.phase}`} title={ingest.fileName}>
+            <span className="chat-ingest-label">{labelForIngest(ingest.phase)}</span>
+            <span className="chat-ctx-track">
+              <span className="chat-ctx-fill" style={{ width: `${ingest.percent}%` }} />
+            </span>
+            {(ingest.phase === 'compiling' || ingest.phase === 'done') && (
+              <span className="chat-ctx-pct">{Math.round(ingest.percent)}%</span>
+            )}
+          </div>
+        )}
         <div
           className="chat-resize-handle"
           aria-label="拖动调整输入框高度"
@@ -251,7 +283,7 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
           }}
         />
         <textarea
-          className="chat-input"
+          className={`chat-input${ingest ? ' has-ingest' : ''}`}
           placeholder={connected ? '输入消息,Enter 发送' : '正在连接...'}
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -307,7 +339,9 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
             <button
               className="chat-upload"
               onClick={() => fileRef.current?.click()}
-              disabled={!connected}
+              disabled={
+                !connected || ingest?.phase === 'uploading' || ingest?.phase === 'compiling'
+              }
               title="上传文档到 raw/,自动编译"
               aria-label="上传文档"
             >

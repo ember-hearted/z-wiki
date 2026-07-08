@@ -47,6 +47,16 @@ export interface TurnStats {
   cacheRead: number
 }
 
+/** ingest 进度角标的阶段。覆盖上传(HTTP)+ 编译(agent 回合)全过程;空闲用 null 表示,不入此类型。 */
+export type IngestPhase = 'uploading' | 'compiling' | 'done' | 'failed'
+
+/** ingest 进度角标数据。null = 无角标(空闲)。fileName 进 title tooltip,percent 是假进度 0-100。 */
+export interface IngestProgress {
+  phase: IngestPhase
+  fileName: string
+  percent: number
+}
+
 interface ServerMsg {
   type:
     | 'text_delta'
@@ -88,6 +98,8 @@ export function useChat() {
   const [model, setModel] = useState<ModelInfo | null>(null)
   const [turnStats, setTurnStats] = useState<TurnStats | null>(null)
   const [contextUsage, setContextUsage] = useState<SessionStatsPayload['contextUsage']>(null)
+  // ingest 进度角标(上传+编译全过程);null = 无角标
+  const [ingest, setIngest] = useState<IngestProgress | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   // 上次累计 tokens(用于 done 时算本轮差值);vault 切换/重连后重置
   const prevTokensRef = useRef<{
@@ -231,6 +243,7 @@ export function useChat() {
           break
         case 'ingest_done':
           window.dispatchEvent(new CustomEvent('ingest-state', { detail: { active: false } }))
+          setIngest((prev) => (prev ? { ...prev, phase: 'done', percent: 100 } : prev))
           setMessages((prev) => [
             ...prev,
             { id: nextId(), role: 'system', text: `已处理上传文件 ${msg.raw},知识库已更新` },
@@ -238,6 +251,7 @@ export function useChat() {
           break
         case 'ingest_error':
           window.dispatchEvent(new CustomEvent('ingest-state', { detail: { active: false } }))
+          setIngest((prev) => (prev ? { ...prev, phase: 'failed' } : prev))
           setMessages((prev) => [
             ...prev,
             { id: nextId(), role: 'system', text: `处理 ${msg.raw} 失败:${msg.text}`, error: true },
@@ -250,9 +264,10 @@ export function useChat() {
           setMessages([])
           streamingIdRef.current = null
           setStreaming(false)
-          // 上下文随切库作废:本轮 token / 累计基准 / 上下文占用全部重置
+          // 上下文随切库作废:本轮 token / 累计基准 / 上下文占用 / ingest 角标全部重置
           setTurnStats(null)
           setContextUsage(null)
+          setIngest(null)
           prevTokensRef.current = null
           window.dispatchEvent(new CustomEvent('kb-updated'))
           break
@@ -284,6 +299,28 @@ export function useChat() {
     }
   }, [connect])
 
+  // ingest 假进度:compiling 阶段 setInterval 100ms,easeOutCubic 20s 爬到 90% 后保持。
+  // 为什么假进度:HTTP 上传快且 fetch 无进度事件;ingest 是 LLM 回合无真实百分比;
+  // easeOutCubic 到 90% 封顶避免"卡 99%"焦虑,ingest_done 跳 100%、ingest_error 保持当前值变红。
+  useEffect(() => {
+    if (ingest?.phase !== 'compiling') return
+    const start = performance.now()
+    const id = setInterval(() => {
+      const elapsed = (performance.now() - start) / 1000
+      const pct = 90 * (1 - Math.pow(1 - Math.min(1, elapsed / 20), 3))
+      setIngest((prev) => (prev && prev.phase === 'compiling' ? { ...prev, percent: pct } : prev))
+    }, 100)
+    return () => clearInterval(id)
+  }, [ingest?.phase])
+
+  // 角标淡出:done 1.5s / failed 3s 后清空(结果消息已留消息流,角标只是即时反馈)。
+  useEffect(() => {
+    if (ingest?.phase !== 'done' && ingest?.phase !== 'failed') return
+    const ms = ingest.phase === 'done' ? 1500 : 3000
+    const id = setTimeout(() => setIngest(null), ms)
+    return () => clearTimeout(id)
+  }, [ingest?.phase])
+
   const send = useCallback(
     (text: string) => {
       const trimmed = text.trim()
@@ -304,16 +341,15 @@ export function useChat() {
 
   const upload = useCallback(async (file: File) => {
     if (!file) return
-    setMessages((prev) => [
-      ...prev,
-      { id: nextId(), role: 'system', text: `上传 ${file.name} 中…` },
-    ])
+    // 角标承担过程反馈,不再推"上传中/已上传编译中"system 消息;结果(已更新/失败)仍留消息流。
+    setIngest({ phase: 'uploading', fileName: file.name, percent: 0 })
     const form = new FormData()
     form.append('file', file)
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: form })
       const data = await res.json()
       if (!res.ok) {
+        setIngest((prev) => (prev ? { ...prev, phase: 'failed' } : prev))
         setMessages((prev) => [
           ...prev,
           {
@@ -324,12 +360,11 @@ export function useChat() {
           },
         ])
       } else {
-        setMessages((prev) => [
-          ...prev,
-          { id: nextId(), role: 'system', text: `${file.name} 已上传,后台编译中…` },
-        ])
+        // fetch 返回 ok -> 进入编译阶段,假进度开始爬升;ingest_started 信号不参与角标(已由 fetch 返回驱动)
+        setIngest((prev) => (prev ? { ...prev, phase: 'compiling' } : prev))
       }
     } catch (err) {
+      setIngest((prev) => (prev ? { ...prev, phase: 'failed' } : prev))
       setMessages((prev) => [
         ...prev,
         {
@@ -342,5 +377,5 @@ export function useChat() {
     }
   }, [])
 
-  return { messages, streaming, connected, send, upload, model, turnStats, contextUsage }
+  return { messages, streaming, connected, send, upload, model, turnStats, contextUsage, ingest }
 }
