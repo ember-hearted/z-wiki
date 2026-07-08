@@ -36,10 +36,12 @@ const AGENT_TOOLS = ['read', 'edit', 'write', 'grep', 'find', 'ls', 'bash'] as c
  */
 function makeBashTool(kbRoot: string, agentDir: string) {
   const pandocBinDir = path.join(agentDir, 'bin')
-  const spawnHook: BashSpawnHook = (ctx) => ({
-    ...ctx,
-    env: { ...ctx.env, PATH: `${pandocBinDir}:${ctx.env.PATH ?? ''}` },
-  })
+  const spawnHook: BashSpawnHook = (ctx) => {
+    // 注入 pandoc bin 到 PATH 前置。PATH 为空时不拼分隔符(防空条目被 bash 当当前目录)
+    const existing = ctx.env.PATH
+    const newPath = existing ? `${pandocBinDir}:${existing}` : pandocBinDir
+    return { ...ctx, env: { ...ctx.env, PATH: newPath } }
+  }
   return defineTool(createBashToolDefinition(kbRoot, { spawnHook }))
 }
 

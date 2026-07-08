@@ -58,11 +58,17 @@ export async function ensurePandoc(agentDir: string): Promise<string> {
   const url = `${PANDOC_RELEASE_URL}/${asset}`
   const archivePath = path.join(binDir, asset)
 
-  // 下载
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`下载 pandoc 失败:${url} HTTP ${res.status}`)
-  const buf = Buffer.from(await res.arrayBuffer())
-  await fs.writeFile(archivePath, buf)
+  // 下载(30s 超时,防网络挂住卡死 server 启动)
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 30000)
+  try {
+    const res = await fetch(url, { signal: controller.signal })
+    if (!res.ok) throw new Error(`下载 pandoc 失败:${url} HTTP ${res.status}`)
+    const buf = Buffer.from(await res.arrayBuffer())
+    await fs.writeFile(archivePath, buf)
+  } finally {
+    clearTimeout(timeout)
+  }
 
   // 解压(tar -xf 自动识别 tar.gz/zip;现代 GNU tar/bsdtar 均支持)
   const extractDir = path.join(binDir, '_extract')
