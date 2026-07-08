@@ -213,10 +213,7 @@ export async function createInteraction(
     const session = await createIngestSession({
       ctx: agentCtx,
       kbRoot: currentKbRoot,
-      onEvent: (event) => {
-        const e = event as { type: string }
-        log.debug({ event: e.type }, 'ingest event')
-      },
+      onEvent: () => {},
     })
     ingestSessions.add(session)
 
