@@ -283,7 +283,7 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
           }}
         />
         <textarea
-          className={`chat-input${ingest ? ' has-ingest' : ''}`}
+          className="chat-input"
           placeholder={connected ? '输入消息,Enter 发送' : '正在连接...'}
           value={input}
           onChange={(e) => setInput(e.target.value)}

@@ -2544,13 +2544,14 @@ body.home-no-scroll {
   box-shadow: inset 0 0 0 1px var(--accent-border);
 }
 
-/* ingest 进度角标:chat-input-row 右上角 absolute 一行浮层。
+/* ingest 进度角标:浮在 chat-input-row 框外侧右上角(框上边线外、右对齐)。
    复用 chat-ctx-track/fill/pct 视觉(48px×4px 条 + accent fill + mono pct);
-   failed 时 fill 覆盖为红(与 chat-tool-error 同色)。出现时 textarea 加 .has-ingest 避让。*/
+   failed 时 fill 覆盖为红(与 chat-tool-error 同色)。框外浮层,不占 textarea 空间。*/
 .chat-ingest {
   position: absolute;
-  /* top 避开顶部 6px resize handle 区,与 textarea 文字对齐 */
-  top: calc(var(--sp-2) + 6px);
+  /* bottom:100% 顶到 composer 框上边线外侧,margin-bottom 留间距 */
+  bottom: 100%;
+  margin-bottom: var(--sp-1);
   right: var(--sp-3);
   display: flex;
   align-items: center;
@@ -2559,7 +2560,7 @@ body.home-no-scroll {
   font-size: var(--fs-xs);
   color: var(--text-muted);
   z-index: 2;
-  /* 角标仅展示,不挡 textarea 交互 */
+  /* 角标仅展示,不挡交互 */
   pointer-events: none;
 }
 .chat-ingest-label {
@@ -2567,10 +2568,6 @@ body.home-no-scroll {
 }
 .chat-ingest-failed .chat-ctx-fill {
   background: #d98a7a;
-}
-/* 角标出现时 textarea 右侧避让(label + 48px track + pct),避免文字被角标遮挡 */
-.chat-input.has-ingest {
-  padding-right: 132px;
 }
 
 /* 发送按钮(图标):向右箭矢,无填充无边框 */
