@@ -85,11 +85,12 @@
   --content-w: min(92vw, 80rem);
   --content-n: min(92vw, 46rem);
 
-  /* 圆角：统一收小到 2–4px，呼应书卷号标签；--r-pill 保留胶囊形 */
+  /* 圆角：默认 2–4px 呼应书卷号标签的锋利感；--r-xl/--r-2xl 为柔化档（按钮/容器等需弱化锋利感处） */
   --r-sm: 2px;
   --r-md: 3px;
   --r-lg: 4px;
-  --r-xl: 4px;
+  --r-xl: 6px;
+  --r-2xl: 8px;
   --r-pill: 999px;
 
   /* header 底部警戒带斜纹的非 accent 色（Archive 暖白；Draft 在下方覆盖为深石板） */
@@ -300,7 +301,7 @@ code {
   color: var(--text-bright);
   padding: 0.1rem 0.35rem;
   border: 1px solid var(--accent);
-  border-radius: var(--r-sm);
+  border-radius: var(--r-xl);
   background: var(--accent-bg);
   letter-spacing: 0.04em;
 }
@@ -2045,13 +2046,17 @@ body.home-no-scroll {
   right: 0;
   bottom: 0;
   width: 50vw;
-  background: var(--surface-alt);
+  /* 暗主题:从 --surface-alt 提到 --surface,稍微亮一点;浅主题保持 --surface-alt(最亮白纸底) */
+  background: var(--surface);
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
   transition: transform 0.25s ease;
   box-shadow: var(--shadow-lg);
+}
+:root[data-theme="draft"] .chat-drawer-panel {
+  background: var(--surface-alt);
 }
 .chat-drawer.open .chat-drawer-panel {
   transform: translateX(0);
@@ -2413,47 +2418,49 @@ body.home-no-scroll {
   /* composer 无独立 border,focus 用 inset ring 反馈,不挤占文字 */
   box-shadow: inset 0 0 0 1px var(--accent-border);
 }
+/* 发送按钮(图标):向右箭矢,无填充无边框 */
 .chat-send {
-  padding: var(--sp-1) var(--sp-4);
-  border: 1px solid var(--accent-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(28px * 4 / 3);
+  height: 28px;
+  padding: 0;
+  border: none;
   border-radius: var(--r-md);
-  background: var(--accent);
-  /* accent 两主题均为中明度，--surface 明度与之过近会融合；固定深字保证对比 */
-  color: #1c1917;
+  background: transparent;
+  /* 图标色:var(--text-muted),与上传按钮一致(暗主题亮、亮主题暗) */
+  color: var(--text-muted);
   cursor: pointer;
-  font-family: var(--mono);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  transition:
-    background 0.15s,
-    border-color 0.15s;
+  transition: color 0.15s;
 }
 .chat-send:hover:not(:disabled) {
-  background: var(--accent-soft);
-  border-color: var(--accent-soft);
+  color: var(--accent-bright);
 }
 .chat-send:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* 上传按钮 */
+/* 上传按钮(图标):upload,无填充无边框 */
 .chat-upload {
-  padding: var(--sp-1) var(--sp-3);
-  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(28px * 4 / 3);
+  height: 28px;
+  padding: 0;
+  border: none;
   border-radius: var(--r-md);
   background: transparent;
+  /* 与左侧状态信息拉开间距:上传到发送因两按钮内 SVG 居中留白显宽,
+     不加此 margin 上传会视觉偏左(离状态信息近、离发送远),加后三者间距视觉一致 */
+  margin-left: var(--sp-2);
   color: var(--text-muted);
   cursor: pointer;
-  font-family: var(--mono);
-  font-size: var(--fs-xs);
-  transition:
-    border-color 0.15s,
-    color 0.15s;
+  transition: color 0.15s;
 }
 .chat-upload:hover:not(:disabled) {
-  border-color: var(--accent-border);
   color: var(--accent-bright);
 }
 .chat-upload:disabled {
@@ -2540,7 +2547,7 @@ body.chat-resizing {
   padding: var(--sp-5);
   background: var(--surface-alt);
   border: 1px solid var(--border);
-  border-radius: var(--r-md);
+  border-radius: var(--r-2xl);
 }
 
 .settings-section-title {
@@ -2568,6 +2575,13 @@ body.chat-resizing {
 .settings-warning {
   font-size: var(--fs-sm);
   color: #d98a7a;
+  margin: 0 0 var(--sp-3);
+}
+.settings-hint {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  font-style: italic;
+  line-height: var(--lh-snug);
   margin: 0 0 var(--sp-3);
 }
 
@@ -2604,8 +2618,9 @@ body.chat-resizing {
 .settings-btn {
   padding: 0.5rem var(--sp-4);
   border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  background: var(--surface);
+  border-radius: var(--r-xl);
+  /* 边框 + 无背景:与 primary/accent/danger 变体统一(知识库按钮、保存按钮同风格) */
+  background: transparent;
   color: var(--text-muted);
   cursor: pointer;
   font-family: var(--mono);
@@ -2619,21 +2634,41 @@ body.chat-resizing {
 }
 .settings-btn:hover:not(:disabled) {
   border-color: var(--accent-border);
+  background: var(--accent-bg);
   color: var(--accent-bright);
 }
 .settings-btn.primary {
   border-color: var(--accent-border);
-  background: var(--accent);
-  color: var(--surface);
+  background: transparent;
+  color: var(--text);
 }
 .settings-btn.primary:hover:not(:disabled) {
-  background: var(--accent-soft);
-  border-color: var(--accent-soft);
-  color: var(--surface);
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent-bright);
 }
 .settings-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+/* 切换:accent 线条强调(主操作,空心避免与当前库 accent-bg 过载) */
+.settings-btn.accent {
+  border-color: var(--accent-border);
+  color: var(--accent-bright);
+}
+.settings-btn.accent:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+/* 删除:danger 红线条(危险操作) */
+.settings-btn.danger {
+  border-color: rgba(217, 138, 122, 0.45);
+  color: #d98a7a;
+}
+.settings-btn.danger:hover:not(:disabled) {
+  border-color: #d98a7a;
+  color: #e0a89a;
+  background: rgba(217, 138, 122, 0.1);
 }
 
 .settings-error {
@@ -2671,7 +2706,7 @@ body.chat-resizing {
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
   border: 1px solid var(--border-light);
-  border-radius: var(--r-md);
+  border-radius: var(--r-2xl);
   background: var(--surface);
   transition: border-color 0.15s;
 }
@@ -2884,6 +2919,8 @@ body.chat-resizing {
   display: flex;
   align-items: stretch;
   gap: var(--sp-2);
+  /* 本容器无背景/边框，border-radius 无直接视觉效果；内部 .settings-input/.settings-btn 各自圆角为准 */
+  border-radius: var(--r-2xl);
 }
 
 /* 输入框 + 内嵌图标(眼睛)容器 */

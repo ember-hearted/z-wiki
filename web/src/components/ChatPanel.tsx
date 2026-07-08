@@ -303,15 +303,33 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
               onClick={() => fileRef.current?.click()}
               disabled={!connected}
               title="上传文档到 raw/,自动编译"
+              aria-label="上传文档"
             >
-              上传
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <path d="M12 3v12" />
+                <path d="m7 8 5-5 5 5" />
+              </svg>
             </button>
             <button
               className="chat-send"
               onClick={submit}
               disabled={!connected || streaming || !input.trim()}
+              title={streaming ? '回复中' : '发送'}
+              aria-label="发送"
             >
-              {streaming ? '回复中' : '发送'}
+              <svg width="16" height="16" viewBox="0 0 1024 1024" fill="currentColor">
+                <path d="M22.983111 238.08L990.321778 57.457778a27.591111 27.591111 0 0 1 27.875555 11.150222c5.973333 9.102222 7.964444 20.309333 2.958223 30.492444l-413.411556 851.626667a27.989333 27.989333 0 0 1-22.926222 16.270222 26.737778 26.737778 0 0 1-24.860445-11.150222l-156.444444-206.051555c-8.931556-12.174222-24.860444-14.222222-37.831111-6.087112l-119.523556 78.165334a26.567111 26.567111 0 0 1-30.890666-1.024 31.004444 31.004444 0 0 1-11.946667-29.468445l35.84-166.456889c7.964444-36.579556 14.392889-64.113778 45.283555-84.423111l463.758223-298.268444L198.314667 498.915556a28.672 28.672 0 0 1-33.848889-8.135112L6.030222 283.761778a27.420444 27.420444 0 0 1-3.982222-27.420445 29.070222 29.070222 0 0 1 20.935111-18.204444z" />
+              </svg>
             </button>
           </div>
         </div>

@@ -443,10 +443,9 @@ export default function Settings() {
         {/* ── Git Bash 路径(可选,ADR-0003 D6 shellPath 覆盖)── */}
         <section className="settings-section">
           <h2 className="settings-section-title">Git Bash 路径(可选)</h2>
-          <p className="settings-warning">
-            pi 默认自动探测 bash:Windows 找 Git Bash(Program Files\Git\bin\bash.exe →
-            PATH),mac/linux 走 /bin/bash → PATH → sh。想指定其他 bash
-            可执行文件时填完整路径覆盖;留空走自动探测。
+          <p className="settings-hint">
+            Windows 找 Git Bash(Program Files\Git\bin\bash.exe → PATH),mac/linux 走 /bin/bash → PATH
+            → sh。想指定其他 bash 可执行文件时填完整路径覆盖
           </p>
           <div className="settings-field">
             <label className="settings-label" htmlFor="shell-path">
@@ -505,7 +504,7 @@ export default function Settings() {
                     )}
                     <button
                       type="button"
-                      className="settings-btn"
+                      className="settings-btn accent"
                       onClick={() => void switchVault(v.path)}
                       disabled={isCurrent || ingestActive || busy}
                     >
@@ -513,7 +512,7 @@ export default function Settings() {
                     </button>
                     <button
                       type="button"
-                      className="settings-btn"
+                      className="settings-btn danger"
                       onClick={() => void deleteVault(v.path)}
                       disabled={isCurrent || busy}
                     >
