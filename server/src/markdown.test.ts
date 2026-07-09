@@ -21,8 +21,10 @@ test('splitBlocks 一致性:未闭合代码块(流式中途)', () => {
   assertConsistent('前文段落\n\n```\nunclosed code')
 })
 
-// 注:单行 '|'(未完成表格)不测一致性 -- mdToHtml 对纯 | 单行有死循环 bug
-// (表格回退后段落遇 | 不推进),属 mdToHtml 既有问题,超出本 issue 范围。
+test('splitBlocks 一致性:单行 |(未完成表格,曾触发 mdToHtml 死循环)', () => {
+  assertConsistent('| header')
+  assertConsistent('| 看起来像表格其实不是\n\n正文')
+})
 
 test('splitBlocks 一致性:混序列表(- 与 1. 交替)', () => {
   assertConsistent('- a\n1. b\n- c')

@@ -169,7 +169,10 @@ export function mdToHtml(mdText: string): string {
         out.push(tbl)
         continue
       }
-      ln.i = start // 不是表,回退
+      // 单行 |(parseTable 返回 '',ln.i 已推进过该 | 行):当段落消费。
+      // 否则落到下方段落解析,段落遇 | 即 break 不推进 -> 外层 while 死循环。
+      out.push(`<p>${parseInline(arr[start])}</p>`)
+      continue
     }
     const hm = /^(#{1,6})\s+(.+)$/.exec(s)
     if (hm) {
