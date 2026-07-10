@@ -14,7 +14,7 @@
     "dev:web": "npm run dev -w web",
     "build": "npm run build -w web && npm run build -w server",
     "desktop": "node desktop/scripts/patch-electron-name.mjs && npm run build && npm run build -w @z-wiki/desktop && electron desktop",
-    "health": "tsx scripts/healthCheck.ts",
+    "health": "tsx server/src/healthCheck.ts",
     "test": "tsx --test \"server/src/**/*.test.ts\" \"desktop/src/**/*.test.ts\"",
     "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p web/tsconfig.app.json --noEmit && tsc -p scripts/tsconfig.json --noEmit && tsc -p desktop/tsconfig.json --noEmit",
     "lint": "biome lint",

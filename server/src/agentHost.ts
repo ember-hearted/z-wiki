@@ -12,8 +12,10 @@ import {
   type AgentSessionEvent,
   type BashSpawnHook,
 } from '@earendil-works/pi-coding-agent'
-import type { Api, Model } from '@earendil-works/pi-ai'
+import { Type } from 'typebox'
+import type { Api, Model, TextContent } from '@earendil-works/pi-ai'
 import { KB_SYSTEM_PROMPT } from './prompt.js'
+import { runHealthCheck, type HealthReport } from './healthCheck.js'
 import { kbHooksFactory } from './kbHooks.js'
 import {
   PROVIDER_KEY,
@@ -43,6 +45,26 @@ function makeBashTool(kbRoot: string, agentDir: string) {
     return { ...ctx, env: { ...ctx.env, PATH: newPath } }
   }
   return defineTool(createBashToolDefinition(kbRoot, { spawnHook }))
+}
+
+/**
+ * 构造健康检查工具(ADR-0009):只读扫 kb/ 返回结构化 HealthReport。
+ * 非 bash 工具(不经 bashWhitelist);用 kbRoot 参数不依赖 agent cwd。
+ * description 软约束:仅健康检查,归档走 /skill:health-check(Q4 ii)。
+ */
+function makeHealthCheckTool(kbRoot: string) {
+  return defineTool({
+    name: 'health_check',
+    label: '健康检查',
+    description:
+      '扫描知识库健康(断链/孤儿/空文件/重复文件名/frontmatter 覆盖率),返回结构化结果。仅用于知识库健康检查;归档到 log.md 走 /skill:health-check。',
+    parameters: Type.Object({}),
+    async execute() {
+      const report: HealthReport = await runHealthCheck(kbRoot)
+      const content: TextContent[] = [{ type: 'text', text: JSON.stringify(report, null, 2) }]
+      return { content, details: report }
+    },
+  })
 }
 
 export interface AgentContextOptions {
@@ -192,7 +214,7 @@ export async function createChatSession(opts: CreateChatSessionOptions): Promise
     // 落盘到 .pi/agent/sessions/chat/——每次连接新建会话文件,不续上下文,历史留档
     sessionManager: SessionManager.create(appRoot, path.join(agentDir, 'sessions', 'chat')),
     tools: [...AGENT_TOOLS],
-    customTools: [makeBashTool(kbRoot, agentDir)],
+    customTools: [makeBashTool(kbRoot, agentDir), makeHealthCheckTool(kbRoot)],
   })
   session.subscribe(opts.onEvent)
   return session

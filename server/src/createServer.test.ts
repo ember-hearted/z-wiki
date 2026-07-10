@@ -56,18 +56,20 @@ test('createServer: /api/health 返回 ok', async () => {
   }
 })
 
-test('createServer: /api/pages 返回指定 vault 的内容(view:true 发布,view:false 跳过)', async () => {
+test('createServer: /api/pages 返回指定 vault 的内容(wiki 全显,排除 00-知识库导航,ADR-0010)', async () => {
   const vault = await makeVault({
+    'wiki/00-知识库导航.md': '# 知识库导航\n\n导航页\n',
     'wiki/01-foo.md': '---\nview: true\n---\n# Foo\n\n正文\n',
-    'wiki/02-hidden.md': '---\nview: false\n---\n# Hidden\n\nx\n',
+    'wiki/02-bar.md': '---\nview: false\n---\n# Bar\n\nx\n',
   })
   const interaction = await createServer({ kbRoot: vault.kbRoot, agentDir: vault.agentDir })
   try {
     const res = await interaction.app.inject({ method: 'GET', url: '/api/pages' })
     assert.equal(res.statusCode, 200)
     const stems = new Set((res.json() as Array<{ stem: string }>).map((p) => p.stem))
-    assert.ok(stems.has('01-foo'), 'view:true 的文章应出现')
-    assert.ok(!stems.has('02-hidden'), 'view:false 的文章不应出现')
+    assert.ok(stems.has('01-foo'), '普通 wiki 全显(原 view:true)')
+    assert.ok(stems.has('02-bar'), '普通 wiki 全显(原 view:false 不再隐藏)')
+    assert.ok(!stems.has('00-知识库导航'), '导航页排除')
   } finally {
     await interaction.app.close()
     await fs.rm(vault.root, { recursive: true, force: true })

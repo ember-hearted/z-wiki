@@ -344,6 +344,30 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
               ))
             })()}
       </div>
+      <div className="chat-quickbar">
+        <button
+          type="button"
+          className="chat-quick"
+          onClick={() => send('/skill:health-check', '🔍 健康检查')}
+          disabled={!connected || streaming}
+          title="知识库健康检查"
+          aria-label="健康检查"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+          </svg>
+          健康检查
+        </button>
+      </div>
       <div
         className="chat-input-row"
         ref={composerRef}

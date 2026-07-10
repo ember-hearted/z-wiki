@@ -2521,6 +2521,41 @@ body.home-no-scroll {
   margin: var(--sp-2) var(--sp-3) var(--sp-3);
   padding: var(--sp-2) var(--sp-3);
 }
+/* 快捷按钮栏:composer(chat-input-row)上方,横排左对齐,溢出横滑(Q1 布局,ADR-0009)。
+   左右对齐 textarea 边缘:框 margin(sp-3)+ 框 padding(sp-3)。按钮少时内容自适应宽度,
+   不追 upload 按钮左边缘(浮动);>4 个溢出横滑,分组推迟。*/
+.chat-quickbar {
+  display: flex;
+  gap: var(--sp-2);
+  /* 对齐下方 chat-input-row 左边框(border 外侧 = 框 margin sp-3) */
+  margin: 0 var(--sp-3);
+  overflow-x: auto;
+}
+.chat-quick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: var(--sans);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+.chat-quick:hover:not(:disabled) {
+  color: var(--accent-bright);
+  border-color: var(--accent-border);
+}
+.chat-quick:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 .chat-input {
   width: 100%;
   flex: 1;

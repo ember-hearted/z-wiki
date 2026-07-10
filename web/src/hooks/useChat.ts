@@ -322,15 +322,16 @@ export function useChat() {
   }, [ingest?.phase])
 
   const send = useCallback(
-    (text: string) => {
+    (text: string, displayText?: string) => {
       const trimmed = text.trim()
       if (!trimmed || !wsRef.current || streaming) return
-      // 推入用户消息,并预建一条空 assistant 回合用于流式累加
+      // 推入用户消息,并预建一条空 assistant 回合用于流式累加。
+      // displayText 提供时(快捷按钮触发 skill),chat 显示友好提示而非原始 /skill: 命令文本。
       const assistantId = nextId()
       streamingIdRef.current = assistantId
       setMessages((prev) => [
         ...prev,
-        { id: nextId(), role: 'user', text: trimmed },
+        { id: nextId(), role: 'user', text: displayText ?? trimmed },
         { id: assistantId, role: 'assistant', segments: [] },
       ])
       setStreaming(true)
