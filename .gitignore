@@ -1,5 +1,5 @@
 /.firecrawl
-node_modules/
+node_modules
 dist/
 *.tsbuildinfo
 .pi/.cache/

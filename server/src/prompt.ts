@@ -17,7 +17,7 @@ export const KB_SYSTEM_PROMPT = `# 知识库项目规范
    - 不值得回写:临时性问答、单条命令速查
 2. **Ingest 必须执行的流程:**
    - raw/ 内容 → 按 §1 编译规则处理 → 创建/更新 wiki → 更新 index.md → 更新 log.md → 触发 build
-3. **Build:** 知识库数据由 server 在 agent 回合结束后自动构建(将 output/ 与 wiki/ 中 view:true 的 .md 经 HTTP 暴露给前端)。你无需手动运行构建命令,但需确保 wiki/output 文件已写盘。
+3. **Build:** 知识库数据由 server 在 agent 回合结束后自动构建(将 output/ 与 wiki/ 中的 .md 经 HTTP 暴露给前端(wiki 导航页 \`00-知识库导航\` 除外))。你无需手动运行构建命令,但需确保 wiki/output 文件已写盘。
 4. **raw/ 只读**:禁止修改 raw/ 中的文件(代码层强制:write/edit 到 raw/ 路径会被拦截)
 5. **每次操作后**:追加 log.md
 
@@ -56,20 +56,10 @@ log.md        — Metadata:操作时间线日志
 - 优先用表格、列表、对比来结构化信息,避免大段散文
 - **禁止手写目录**:wiki 和 output 文件中不要添加 \`## 目录\` 或 \`[TOC]\` 等手动/自动目录。目录由渲染器自动生成
 
-### View 产出标记(view: 字段)
+### 导航页命名
 
-每个 wiki 文章在 frontmatter 中必须设置 \`view:\` 字段,控制是否产出到 view 静态网站:
-
-| 标记 | 含义 | 适用场景 |
-|------|------|----------|
-| \`view: true\` | **值得产出** | 有通用参考价值的概念、方法论、工具指南、速查表、外部资源整理 |
-| \`view: false\` | **不产出** | 导航页、索引页、项目实战细节、个人 skill 配置、面试策略、个人阅读笔记 |
-
-**打标规则:**
-- 新创建的 wiki 文章必须设定 \`view:\` 字段,不可省略
-- \`view: true\` 的判断标准:内容是否对**通用读者**有独立参考价值?是否脱离了具体项目/个人场景仍可阅读?
-- \`view: false\` 的判断标准:内容是否仅为知识库内部导航、个人项目记录、面试策略等非通用内容?
-- **拿不准时**,询问用户意见,不要自行决定
+- 知识库总导航页固定命名 \`00-知识库导航.md\`,build 时排除出可视层(书本本身即导航,导航页不重复进书本,ADR-0010)
+- 其他 wiki 文章全部进入可视层,无需任何 view 标记
 
 ---
 
@@ -107,7 +97,6 @@ log.md        — Metadata:操作时间线日志
 tags: [分类标签]
 updated: YYYY-MM-DD
 status: active
-view: true  # 或 false
 ---
 
 # 主题名
@@ -183,9 +172,8 @@ view: true  # 或 false
 
 ### 你需保证
 - wiki/ 与 output/ 的新增/修改文件已正确写盘
-- frontmatter 的 \`view:\` 字段已设置
 
-构建过程:server 调 buildView 扫描 output/ 的 .md 和 wiki/ 中 \`view: true\` 的 .md,编译为内存数据经 HTTP 暴露给前端。
+构建过程:server 调 buildView 扫描 output/ 的 .md 和 wiki/ 的 .md(除导航页 \`00-知识库导航\`),编译为内存数据经 HTTP 暴露给前端。
 
 ---
 

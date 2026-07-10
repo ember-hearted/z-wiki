@@ -20,17 +20,20 @@ const longBody = (n: number): string => Array.from({ length: n }, (_, i) => `lin
 
 const stems = (pages: PageMeta[]): Set<string> => new Set(pages.map((p) => p.stem))
 
-test('wiki: view:true published, view:false skipped', async () => {
+test('wiki: 全显,排除导航页 00-知识库导航(ADR-0010)', async () => {
   const root = await makeProject({
-    'wiki/01-foo.md': '---\nview: true\n---\n# Foo\n\n## Section\n\ntext\n',
-    'wiki/02-hidden.md': '---\nview: false\n---\n# Hidden\n\nbody\n',
+    'wiki/00-知识库导航.md': '# 知识库导航\n\n导航页\n',
+    'wiki/01-foo.md': '---\nview: true\n---\n# Foo\n\nbody\n',
+    'wiki/02-bar.md': '---\nview: false\n---\n# Bar\n\nbody\n',
   })
   try {
     const { pages, fragments } = await buildView(root)
-    assert.ok(stems(pages).has('01-foo'))
-    assert.ok(!stems(pages).has('02-hidden'))
+    assert.ok(stems(pages).has('01-foo'), '普通 wiki 全显(原 view:true)')
+    assert.ok(stems(pages).has('02-bar'), '普通 wiki 全显(原 view:false 不再隐藏)')
+    assert.ok(!stems(pages).has('00-知识库导航'), '导航页排除')
     assert.ok(fragments.has('01-foo'))
-    assert.ok(!fragments.has('02-hidden'))
+    assert.ok(fragments.has('02-bar'))
+    assert.ok(!fragments.has('00-知识库导航'))
   } finally {
     await fs.rm(root, { recursive: true, force: true })
   }
