@@ -2253,11 +2253,13 @@ body.home-no-scroll {
   color: #d98a7a;
 }
 
-.chat-content {
+/* chat bubble:消息内容容器。flex column + gap 让多个 block(splitBlocks 产出的独立
+   .chat-markdown div)与工具 chip 之间留出间距,修复段间间距归零的「挤」;
+   .chat-tool 的 align-self:flex-start 亦依赖此 flex 父容器才生效。 */
+.chat-bubble {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  min-width: 0;
 }
 
 /* 文本块:与 .prose 协调的克制排版,保留换行 */
@@ -2290,19 +2292,11 @@ body.home-no-scroll {
 .chat-markdown h2,
 .chat-markdown h3,
 .chat-markdown h4 {
+  /* chat 内标题全压平到正文大小:对话不该有文档式大字层级,靠粗体+margin 区分 */
+  font-size: var(--fs-sm);
   font-weight: 650;
   line-height: var(--lh-tight);
   margin: var(--sp-3) 0 var(--sp-2);
-}
-.chat-markdown h1 {
-  font-size: var(--fs-lg);
-}
-.chat-markdown h2 {
-  font-size: var(--fs-base);
-}
-.chat-markdown h3,
-.chat-markdown h4 {
-  font-size: var(--fs-sm);
 }
 .chat-markdown ul,
 .chat-markdown ol {
