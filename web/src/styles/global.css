@@ -2215,6 +2215,55 @@ body.home-no-scroll {
 .chat-row-assistant {
   border-left-color: var(--accent);
 }
+/* fairy 行左边线:复刻 hero 顶部扫描亮峰(垂直版)。底轨沿用 .chat-row 的 --border-light,
+   ::before 叠加垂直渐变亮峰,7s 周期从上往下扫一次后静默,hover 转亮。 */
+.chat-row-fairy::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, var(--accent-border) 50%, transparent);
+  background-size: 100% 200%;
+  background-repeat: no-repeat;
+  opacity: 0;
+  will-change: background-position, opacity;
+  transition: opacity 0.45s ease;
+  animation: fairy-scan-ttb 7s ease-in-out infinite;
+}
+.chat-row-fairy:hover::before {
+  background: linear-gradient(180deg, transparent, var(--accent-bright) 50%, transparent);
+}
+@keyframes fairy-scan-ttb {
+  0% {
+    background-position: 0 100%;
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  42% {
+    background-position: 0 0%;
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  100% {
+    background-position: 0 0%;
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-row-fairy::before {
+    animation: none;
+    opacity: 1;
+    background: linear-gradient(180deg, transparent, var(--accent-border), transparent);
+    background-size: 100% 100%;
+  }
+}
 .chat-row-system {
   flex-direction: row;
   align-items: baseline;
