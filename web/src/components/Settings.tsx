@@ -438,15 +438,22 @@ export default function Settings() {
               思考模式
             </label>
             <div className="settings-control">
-              <label className="settings-checkbox">
-                <input
-                  id="llm-reasoning"
-                  type="checkbox"
-                  checked={reasoningInput}
-                  onChange={(e) => setReasoningInput(e.target.checked)}
-                />
-                <span>模型支持思考(reasoning)</span>
-              </label>
+              <button
+                type="button"
+                id="llm-reasoning"
+                className="settings-switch"
+                role="switch"
+                aria-checked={reasoningInput}
+                onClick={() => setReasoningInput((v) => !v)}
+                onKeyDown={(e) => {
+                  if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault()
+                    setReasoningInput((v) => !v)
+                  }
+                }}
+              >
+                <span className="settings-switch-knob" aria-hidden="true" />
+              </button>
             </div>
           </div>
 
