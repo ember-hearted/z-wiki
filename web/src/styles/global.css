@@ -2350,19 +2350,16 @@ body.home-no-scroll {
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
-  padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-4);
+  padding: var(--sp-2) var(--sp-3) var(--sp-2) 0;
   position: relative;
 }
-/* chat-row-body:chat-label + chat-bubble 包裹层,承载左边线(border-left + fairy 流光)。
-   actions 留在 body 之外,左边线只到 chat-bubble、不延伸到 actions 行。
-   body 向左拉 sp-4(margin-left 负)让 border-left 落在 chat-row 原 border 位置,
-   padding-left sp-4 把内容缩进回原位,与 actions 对齐。 */
+/* chat-row-body:chat-bubble 包裹层,承载左边线(border-left + fairy 流光)。
+   chat-label 与 actions 留在 body 外,左边缘紧贴竖线(左 0)对齐;chat-bubble 缩进 sp-4。 */
 .chat-row-body {
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
   border-left: 2px solid var(--border-light);
-  margin-left: calc(-1 * var(--sp-4));
   padding-left: var(--sp-4);
   position: relative;
 }

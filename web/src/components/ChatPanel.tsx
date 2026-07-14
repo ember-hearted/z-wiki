@@ -256,12 +256,12 @@ const MessageBubble = memo(function MessageBubble({
 
   return (
     <div className={`chat-row chat-row-${isUser ? 'user' : 'fairy'}`} data-role={msg.role}>
+      {!isUser && (
+        <div className="chat-label">
+          <span className="chat-label-name">Fairy</span>✨
+        </div>
+      )}
       <div className="chat-row-body">
-        {!isUser && (
-          <div className="chat-label">
-            <span className="chat-label-name">Fairy</span>✨
-          </div>
-        )}
         <div className="chat-bubble">
           {isUser ? (
             <TextBlock text={msg.text ?? ''} />
