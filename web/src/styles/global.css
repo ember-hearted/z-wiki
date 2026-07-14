@@ -2318,6 +2318,31 @@ body.home-no-scroll {
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+/* assistant 行右下角复制按钮:常驻克制(透明 faint),hover 才浮出 accent 淡底。
+   和导航按钮同基调,存在感靠"每条 assistant 行常驻";absolute 贴 chat-row 右下角。 */
+.chat-copy-btn {
+  position: absolute;
+  right: var(--sp-1);
+  bottom: var(--sp-1);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+.chat-copy-btn:hover {
+  color: var(--accent);
+  background: var(--accent-bg);
+}
 /* ── 档案式时间线:所有回合左对齐,role 标签置顶,内容在下 ── */
 .chat-row {
   display: flex;

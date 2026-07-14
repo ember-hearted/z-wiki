@@ -19,6 +19,7 @@ import {
 } from '../hooks/useChat'
 import { shouldScrollToBottom } from './chatScroll'
 import { ChatNav } from './chatNav'
+import { CopyButton, getLastTextSegment } from './chatCopy'
 
 /** 格式化 token 数:>1k 显示为 1.2k,否则原值。 */
 function fmtTokens(n: number): string {
@@ -250,6 +251,8 @@ const MessageBubble = memo(function MessageBubble({
 
   const isUser = msg.role === 'user'
   const segments = msg.segments ?? []
+  // 复制按钮:仅 assistant、非流式、且有 text 段时显示;复制最后一条 text 段的原始 md
+  const lastText = !isUser && !typing ? getLastTextSegment(segments) : null
 
   return (
     <div className={`chat-row chat-row-${isUser ? 'user' : 'fairy'}`} data-role={msg.role}>
@@ -294,6 +297,7 @@ const MessageBubble = memo(function MessageBubble({
           </>
         )}
       </div>
+      {lastText && <CopyButton text={lastText.text} />}
     </div>
   )
 })
