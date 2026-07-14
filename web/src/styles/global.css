@@ -2320,10 +2320,10 @@ body.home-no-scroll {
 }
 
 /* assistant 行底部消息操作行:单独一行承载消息级按钮(复制等),为将来扩展留位。
-   右对齐保持原"右下"语义;按钮横排,gap 间隔。 */
+   左对齐;按钮横排,gap 间隔。 */
 .chat-row-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: var(--sp-1);
 }
 .chat-copy-btn {
