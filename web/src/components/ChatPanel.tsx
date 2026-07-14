@@ -17,6 +17,7 @@ import {
   type TurnStats,
   useChat,
 } from '../hooks/useChat'
+import { shouldScrollToBottom } from './chatScroll'
 
 /** 格式化 token 数:>1k 显示为 1.2k,否则原值。 */
 function fmtTokens(n: number): string {
@@ -388,10 +389,19 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
     e.target.value = ''
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: messages 是滚动触发信号(消息增长时滚到底),非直接引用
+  // 上次消息数与流式状态:区分"该滚"(新消息/流式/流结束)与"不该滚"(toggle 胶囊)。
+  const prevMsgLenRef = useRef(messages.length)
+  const prevStreamingRef = useRef(streaming)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: messages 是滚动触发信号(消息增长/流式 delta 时滚到底),非直接引用
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
+    const prevLen = prevMsgLenRef.current
+    const prevStream = prevStreamingRef.current
+    prevMsgLenRef.current = messages.length
+    prevStreamingRef.current = streaming
+    // toggle 思维链胶囊只翻转 collapsed(数量不变、非流式),不应触发滚动到底。
+    if (!shouldScrollToBottom(prevLen, messages.length, prevStream, streaming)) return
     // 流式期间 instant(每 delta 直接定位,轻);非流式 smooth(完成时平滑收尾)
     el.scrollTo({ top: el.scrollHeight, behavior: streaming ? 'auto' : 'smooth' })
   }, [messages, streaming])
