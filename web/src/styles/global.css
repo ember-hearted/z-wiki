@@ -2325,6 +2325,7 @@ body.home-no-scroll {
   display: flex;
   justify-content: flex-start;
   gap: var(--sp-1);
+  padding-left: var(--sp-4);
 }
 .chat-copy-btn {
   width: 24px;
@@ -2418,11 +2419,21 @@ body.home-no-scroll {
 }
 
 .chat-label {
+  position: relative;
+  padding-left: var(--sp-4);
   font-family: var(--mono);
   font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.12em;
   color: var(--text-faint);
+}
+/* ❦ 花朵署名标:落在竖线位置(左 0),Fairy✨ 缩进 sp-4 与 chat-bubble 对齐 */
+.chat-label::before {
+  content: "❦";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--accent-soft);
 }
 /* Fairy 名字炫彩:完整彩虹缓慢横向流动(8s 循环),prefers-reduced-motion 回退静态。
    ✨ emoji 不吃 background-clip:text,故拆 span 只给 "Fairy" 套渐变;
