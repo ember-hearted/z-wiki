@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.7",

@@ -36,6 +36,7 @@ import {
 } from './config.js'
 import { hasIndexChanged } from './hasIndexChanged.js'
 import { rawDir } from './kbLayout.js'
+import { relayEvent, type RelayCtx } from './relayEvent.js'
 import { checkUploadExt } from './uploadExts.js'
 
 export interface Interaction {
@@ -181,45 +182,14 @@ export async function createInteraction(
     }
   }
 
-  /** 将 pi 的 AgentSessionEvent 转成前端可消费的简化消息,推给 WS。 */
-  function relayEvent(socket: WebSocket, event: unknown): void {
-    const e = event as {
-      type: string
-      assistantMessageEvent?: { type: string; delta?: string }
-      toolName?: string
-      // read 的 args 形如 { file_path, offset?, limit? };其它工具各异,统一序列化
-      args?: unknown
-      isError?: boolean
-    }
-    switch (e.type) {
-      case 'message_update': {
-        const ae = e.assistantMessageEvent
-        if (ae?.type === 'text_delta' && ae.delta) {
-          socket.send(JSON.stringify({ type: 'text_delta', text: ae.delta }))
-        }
-        break
-      }
-      case 'tool_execution_start':
-        socket.send(JSON.stringify({ type: 'tool_start', tool: e.toolName, args: e.args }))
-        break
-      case 'tool_execution_end':
-        socket.send(
-          JSON.stringify({ type: 'tool_end', tool: e.toolName, error: Boolean(e.isError) }),
-        )
-        break
-      case 'agent_end': {
-        // agent_end 发生在 prompt 期间,session 必在 chatSessions 中(close 才 dispose);
-        // 仍用 ?. 兜底,stats 缺失时退回裸 done,前端不更新 token 面板。
-        const session = chatSessions.get(socket)
-        const stats = session ? serializeStats(session) : undefined
-        socket.send(JSON.stringify(stats ? { type: 'done', stats } : { type: 'done' }))
-        // 闭环刷新:agent 写完 wiki/output 后自动 build,有变更推 kb_updated
-        void triggerBuild(socket)
-        break
-      }
-      default:
-        break
-    }
+  // relayEvent 的依赖注入:agent_end 的 stats 收集(读 chatSessions + serializeStats)+ build 触发。
+  // relayEvent 本体是模块级纯函数(./relayEvent.ts),此处只提供 createInteraction 闭包内的依赖。
+  const relayCtx: RelayCtx = {
+    getStats: (s) => {
+      const session = chatSessions.get(s as WebSocket)
+      return session ? serializeStats(session) : undefined
+    },
+    triggerBuild,
   }
 
   /** 构建 + 通知:纯函数 buildView → 对比缓存 → 变了才换缓存并广播 kb_updated。 */
@@ -305,7 +275,7 @@ export async function createInteraction(
     const session = await createChatSession({
       ctx: agentCtx,
       kbRoot: currentKbRoot,
-      onEvent: (event) => relayEvent(socket, event),
+      onEvent: (event) => relayEvent(socket, event, relayCtx),
     })
     // createChatSession 期间客户端可能已断开(快速刷新/网络抖动):已 close 的 socket
     // 不再触发 close 事件,若不检查会导致 session 不 dispose + chatSessions 残留 dead entry。

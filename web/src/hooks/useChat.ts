@@ -95,6 +95,143 @@ function replaceById<T extends { id: string }>(arr: T[], id: string, next: T): T
   return arr.map((it) => (it.id === id ? next : it))
 }
 
+/** applyServerMsg 读取的当前状态(从 ref 读,避免 onmessage 闭包 stale)。 */
+interface ChatCurrent {
+  /** 当前流式累加的 assistant 回合 id(text_delta/tool 配对用)。 */
+  streamingId: string | null
+  /** 上次累计 tokens(done 差值基准;vault 切换/重连后重置)。 */
+  prevTokens: {
+    input: number
+    output: number
+    cacheRead: number
+    cacheWrite: number
+    total: number
+  } | null
+}
+
+/** applyServerMsg 的依赖注入(使纯函数可测:nextId 是模块级非纯,故注入)。 */
+interface ChatCtx {
+  nextId: () => string
+}
+
+/** applyServerMsg 返回的部分状态更新(undefined 字段 = 不改)。 */
+interface ChatUpdate {
+  /** messages 的函数式更新(读 prev 避免闭包 stale)。 */
+  messages?: (prev: ChatMessage[]) => ChatMessage[]
+  streaming?: boolean
+  streamingId?: string | null
+  prevTokens?: ChatCurrent['prevTokens']
+  turnStats?: TurnStats | null
+  contextUsage?: SessionStatsPayload['contextUsage']
+}
+
+/** WS 消息 -> 状态更新(纯函数,可单测)。
+ *  处理 text_delta / tool_start / tool_end / done / error;其余类型返回 null(由 hook 自行处理)。
+ *  为后续 thinking segment 扩展提供可测 seam(ADR-0004 D8 第三环)。 */
+export function applyServerMsg(
+  msg: ServerMsg,
+  ctx: ChatCtx,
+  current: ChatCurrent,
+): ChatUpdate | null {
+  switch (msg.type) {
+    case 'text_delta': {
+      const id = current.streamingId
+      const delta = msg.text ?? ''
+      return {
+        messages: (prev) => {
+          if (!id) return prev
+          return prev.map((m) => {
+            if (m.id !== id) return m
+            const segs = m.segments ?? []
+            const last = segs[segs.length - 1]
+            if (last && last.kind === 'text') {
+              return {
+                ...m,
+                segments: replaceById(segs, last.id, { ...last, text: last.text + delta }),
+              }
+            }
+            const seg: Segment = { kind: 'text', id: ctx.nextId(), text: delta }
+            return { ...m, segments: [...segs, seg] }
+          })
+        },
+      }
+    }
+    case 'tool_start': {
+      const id = current.streamingId
+      if (!id || !msg.tool) return {}
+      const seg: Segment = {
+        kind: 'tool',
+        id: ctx.nextId(),
+        tool: msg.tool,
+        status: 'running',
+        args: msg.args,
+      }
+      return {
+        messages: (prev) =>
+          prev.map((m) => (m.id === id ? { ...m, segments: [...(m.segments ?? []), seg] } : m)),
+      }
+    }
+    case 'tool_end': {
+      const id = current.streamingId
+      if (!id || !msg.tool) return {}
+      const errored = Boolean(msg.error)
+      return {
+        messages: (prev) =>
+          prev.map((m) => {
+            if (m.id !== id) return m
+            const segs = m.segments ?? []
+            // 从末尾找最近一个同名 running
+            let idx = -1
+            for (let i = segs.length - 1; i >= 0; i--) {
+              const s = segs[i]
+              if (s.kind === 'tool' && s.tool === msg.tool && s.status === 'running') {
+                idx = i
+                break
+              }
+            }
+            if (idx === -1) return m
+            const updated = segs.slice()
+            updated[idx] = {
+              ...(updated[idx] as Extract<Segment, { kind: 'tool' }>),
+              status: errored ? 'error' : 'done',
+            }
+            return { ...m, segments: updated }
+          }),
+      }
+    }
+    case 'done': {
+      const update: ChatUpdate = { streaming: false, streamingId: null }
+      // 累计 stats -> 本轮差值;首次(无 prev)本轮 = 累计
+      if (msg.stats) {
+        const cur = msg.stats.tokens
+        const prev = current.prevTokens
+        update.turnStats = prev
+          ? {
+              input: cur.input - prev.input,
+              output: cur.output - prev.output,
+              cacheRead: cur.cacheRead - prev.cacheRead,
+            }
+          : { input: cur.input, output: cur.output, cacheRead: cur.cacheRead }
+        update.prevTokens = cur
+        update.contextUsage = msg.stats.contextUsage
+      }
+      return update
+    }
+    case 'error': {
+      return {
+        messages: (prev) => [
+          ...prev,
+          { id: ctx.nextId(), role: 'system', text: msg.text ?? '未知错误', error: true },
+        ],
+        streaming: false,
+        streamingId: null,
+      }
+    }
+    default:
+      return null
+  }
+}
+
 export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [streaming, setStreaming] = useState(false)
@@ -149,97 +286,25 @@ export function useChat() {
     ws.onerror = () => setConnected(false)
     ws.onmessage = (ev) => {
       const msg = JSON.parse(ev.data as string) as ServerMsg
+      // text_delta/tool_start/tool_end/done/error 走纯函数 reducer(可测 seam);其余类型下方 switch
+      const update = applyServerMsg(
+        msg,
+        { nextId },
+        {
+          streamingId: streamingIdRef.current,
+          prevTokens: prevTokensRef.current,
+        },
+      )
+      if (update) {
+        if (update.messages) setMessages(update.messages)
+        if (update.streaming !== undefined) setStreaming(update.streaming)
+        if (update.streamingId !== undefined) streamingIdRef.current = update.streamingId
+        if (update.prevTokens !== undefined) prevTokensRef.current = update.prevTokens
+        if (update.turnStats !== undefined) setTurnStats(update.turnStats)
+        if (update.contextUsage !== undefined) setContextUsage(update.contextUsage)
+        return
+      }
       switch (msg.type) {
-        case 'text_delta': {
-          // 累加到当前 assistant 回合:若末段是 text 则续写,否则新建 text 段
-          setMessages((prev) => {
-            const id = streamingIdRef.current
-            if (!id) return prev
-            const delta = msg.text ?? ''
-            return prev.map((m) => {
-              if (m.id !== id) return m
-              const segs = m.segments ?? []
-              const last = segs[segs.length - 1]
-              if (last && last.kind === 'text') {
-                return {
-                  ...m,
-                  segments: replaceById(segs, last.id, { ...last, text: last.text + delta }),
-                }
-              }
-              const seg: Segment = { kind: 'text', id: nextId(), text: delta }
-              return { ...m, segments: [...segs, seg] }
-            })
-          })
-          break
-        }
-        case 'tool_start': {
-          // 追加 running 工具段,保留与前后文本的时序
-          setMessages((prev) => {
-            const id = streamingIdRef.current
-            if (!id || !msg.tool) return prev
-            const seg: Segment = {
-              kind: 'tool',
-              id: nextId(),
-              tool: msg.tool,
-              status: 'running',
-              args: msg.args,
-            }
-            return prev.map((m) =>
-              m.id === id ? { ...m, segments: [...(m.segments ?? []), seg] } : m,
-            )
-          })
-          break
-        }
-        case 'tool_end': {
-          // 配对最近一个同名 running 工具段,置为 done/error
-          setMessages((prev) => {
-            const id = streamingIdRef.current
-            if (!id || !msg.tool) return prev
-            const errored = Boolean(msg.error)
-            return prev.map((m) => {
-              if (m.id !== id) return m
-              const segs = m.segments ?? []
-              // 从末尾找最近一个同名 running
-              let idx = -1
-              for (let i = segs.length - 1; i >= 0; i--) {
-                const s = segs[i]
-                if (s.kind === 'tool' && s.tool === msg.tool && s.status === 'running') {
-                  idx = i
-                  break
-                }
-              }
-              if (idx === -1) return m
-              const updated = segs.slice()
-              updated[idx] = {
-                ...(updated[idx] as Extract<Segment, { kind: 'tool' }>),
-                status: errored ? 'error' : 'done',
-              }
-              return { ...m, segments: updated }
-            })
-          })
-          break
-        }
-        case 'done': {
-          streamingIdRef.current = null
-          setStreaming(false)
-          // 累计 stats → 本轮差值;首次(无 prev)本轮 = 累计
-          if (msg.stats) {
-            const cur = msg.stats.tokens
-            const prev = prevTokensRef.current
-            setTurnStats(
-              prev
-                ? {
-                    input: cur.input - prev.input,
-                    output: cur.output - prev.output,
-                    cacheRead: cur.cacheRead - prev.cacheRead,
-                  }
-                : { input: cur.input, output: cur.output, cacheRead: cur.cacheRead },
-            )
-            prevTokensRef.current = cur
-            setContextUsage(msg.stats.contextUsage)
-          }
-          break
-        }
         case 'kb_updated':
           // 知识库已重建,通知 useData 重拉 pages
           window.dispatchEvent(new CustomEvent('kb-updated', { detail: msg }))
@@ -277,14 +342,6 @@ export function useChat() {
           setIngest(null)
           prevTokensRef.current = null
           window.dispatchEvent(new CustomEvent('kb-updated'))
-          break
-        case 'error':
-          setMessages((prev) => [
-            ...prev,
-            { id: nextId(), role: 'system', text: msg.text ?? '未知错误', error: true },
-          ])
-          setStreaming(false)
-          streamingIdRef.current = null
           break
         case 'system':
           // 连接系统消息,忽略
