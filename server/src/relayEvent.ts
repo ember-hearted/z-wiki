@@ -1,7 +1,7 @@
 /** 将 pi 的 AgentSessionEvent 转成前端可消费的 WS 帧,推给 socket。
  *  纯函数(注入 socket + ctx):不依赖 chatSessions / serializeStats / triggerBuild,
  *  闭包外可单测。agent_end 的 stats 收集与 build 触发经 ctx 注入,使转发逻辑本身可测。
- *  ADR-0004 D8:thinking 事件(thinking_start/delta/end)的转发在后续 ticket 扩展,本模块只复刻现有行为。 */
+ *  ADR-0004 D8 第三环:thinking 事件(thinking_start/delta/end)转发给前端渲染思维链胶囊。 */
 
 /** relayEvent 需要的 socket 接口:只依赖 send,测试可注入 mock。 */
 export type RelaySocket = { send: (data: string) => void }
@@ -17,6 +17,7 @@ export interface RelayCtx {
 /** pi AgentSessionEvent 的最小形状(relayEvent 只看这几个字段,其余忽略)。 */
 interface PiEvent {
   type: string
+  // pi AssistantMessageEvent:text_delta/thinking_delta 用 delta;其余子事件字段 relayEvent 不读
   assistantMessageEvent?: { type: string; delta?: string }
   toolName?: string
   // read 的 args 形如 { file_path, offset?, limit? };其它工具各异,统一序列化
@@ -25,7 +26,8 @@ interface PiEvent {
 }
 
 /** 将 pi 事件转 WS 帧。
- *  message_update 的 text_delta -> text_delta 帧;tool_execution_* -> tool_start/end;agent_end -> done(附 stats)+ 触发 build。 */
+ *  message_update:text_delta -> text_delta 帧,thinking_start/delta/end -> thinking_* 帧;
+ *  tool_execution_* -> tool_start/end;agent_end -> done(附 stats)+ 触发 build。 */
 export function relayEvent(socket: RelaySocket, event: unknown, ctx: RelayCtx): void {
   const e = event as PiEvent
   switch (e.type) {
@@ -33,6 +35,13 @@ export function relayEvent(socket: RelaySocket, event: unknown, ctx: RelayCtx): 
       const ae = e.assistantMessageEvent
       if (ae?.type === 'text_delta' && ae.delta) {
         socket.send(JSON.stringify({ type: 'text_delta', text: ae.delta }))
+      } else if (ae?.type === 'thinking_start') {
+        socket.send(JSON.stringify({ type: 'thinking_start' }))
+      } else if (ae?.type === 'thinking_delta' && ae.delta) {
+        // pi 的 thinking_delta.delta 映射为 WS 帧的 text(与前端 segment.text 字段对齐)
+        socket.send(JSON.stringify({ type: 'thinking_delta', text: ae.delta }))
+      } else if (ae?.type === 'thinking_end') {
+        socket.send(JSON.stringify({ type: 'thinking_end' }))
       }
       break
     }

@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 
-/** 助手回合内的时间线片段:文本段与工具调用段按到达顺序排列,保留时序。 */
+/** 助手回合内的时间线片段:文本段、工具调用段、思考段按到达顺序排列,保留时序。 */
 export type Segment =
   | { kind: 'text'; id: string; text: string }
   | {
@@ -10,6 +10,17 @@ export type Segment =
       status: 'running' | 'done' | 'error'
       // 工具入参,read 形如 { file_path, offset?, limit? };仅 tool_start 携带
       args?: unknown
+    }
+  | {
+      kind: 'thinking'
+      id: string
+      text: string
+      // collapsed 真相源在 reducer(segment 字段),不在组件 local state:
+      // 否则 thinking_end 自动收缩与用户手动 toggle 打架
+      collapsed: boolean
+      // streaming 标记是中断态支点:thinking_start 建 true,thinking_end 置 false;
+      // done/error 清 false(半截保持展开)。delta/end 按 streaming 配对(不按 kind)
+      streaming: boolean
     }
 
 export interface ChatMessage {
@@ -72,6 +83,9 @@ interface ServerMsg {
     | 'vault_changed'
     | 'session_init'
     | 'thinking_changed'
+    | 'thinking_start'
+    | 'thinking_delta'
+    | 'thinking_end'
   text?: string
   tool?: string
   args?: unknown
@@ -93,6 +107,16 @@ const nextId = () => `m${Date.now()}-${counter++}`
 /** 不可变更新:替换数组中指定 id 的元素。 */
 function replaceById<T extends { id: string }>(arr: T[], id: string, next: T): T[] {
   return arr.map((it) => (it.id === id ? next : it))
+}
+
+/** 从 segments 末尾找最近一个 streaming 思考段的索引(按 streaming 配对,不按 kind)。
+ *  为多段思考不串铺路:只有当前流式中的段接受 delta/end,已收缩的旧段不碰。无则 -1。 */
+function findStreamingThinking(segs: Segment[]): number {
+  for (let i = segs.length - 1; i >= 0; i--) {
+    const s = segs[i]
+    if (s.kind === 'thinking' && s.streaming) return i
+  }
+  return -1
 }
 
 /** applyServerMsg 读取的当前状态(从 ref 读,避免 onmessage 闭包 stale)。 */
@@ -126,8 +150,8 @@ interface ChatUpdate {
 }
 
 /** WS 消息 -> 状态更新(纯函数,可单测)。
- *  处理 text_delta / tool_start / tool_end / done / error;其余类型返回 null(由 hook 自行处理)。
- *  为后续 thinking segment 扩展提供可测 seam(ADR-0004 D8 第三环)。 */
+ *  处理 text_delta / tool_start / tool_end / thinking_* / done / error;
+ *  其余类型返回 null(由 hook 自行处理)。 */
 export function applyServerMsg(
   msg: ServerMsg,
   ctx: ChatCtx,
@@ -199,6 +223,56 @@ export function applyServerMsg(
           }),
       }
     }
+    case 'thinking_start': {
+      const id = current.streamingId
+      if (!id) return {}
+      const seg: Segment = {
+        kind: 'thinking',
+        id: ctx.nextId(),
+        text: '',
+        collapsed: false,
+        streaming: true,
+      }
+      return {
+        messages: (prev) =>
+          prev.map((m) => (m.id === id ? { ...m, segments: [...(m.segments ?? []), seg] } : m)),
+      }
+    }
+    case 'thinking_delta': {
+      const id = current.streamingId
+      if (!id) return {}
+      const delta = msg.text ?? ''
+      return {
+        messages: (prev) =>
+          prev.map((m) => {
+            if (m.id !== id) return m
+            const segs = m.segments ?? []
+            const idx = findStreamingThinking(segs)
+            if (idx === -1) return m
+            const updated = segs.slice()
+            const target = updated[idx] as Extract<Segment, { kind: 'thinking' }>
+            updated[idx] = { ...target, text: target.text + delta }
+            return { ...m, segments: updated }
+          }),
+      }
+    }
+    case 'thinking_end': {
+      const id = current.streamingId
+      if (!id) return {}
+      return {
+        messages: (prev) =>
+          prev.map((m) => {
+            if (m.id !== id) return m
+            const segs = m.segments ?? []
+            const idx = findStreamingThinking(segs)
+            if (idx === -1) return m
+            const updated = segs.slice()
+            const target = updated[idx] as Extract<Segment, { kind: 'thinking' }>
+            updated[idx] = { ...target, collapsed: true, streaming: false }
+            return { ...m, segments: updated }
+          }),
+      }
+    }
     case 'done': {
       const update: ChatUpdate = { streaming: false, streamingId: null }
       // 累计 stats -> 本轮差值;首次(无 prev)本轮 = 累计
@@ -230,6 +304,30 @@ export function applyServerMsg(
     default:
       return null
   }
+}
+
+/** 翻转指定思考段的 collapsed(用户点击胶囊展开/收缩)。
+ *  collapsed 真相源在 segment 字段(reducer),不放组件 local state--否则 thinking_end
+ *  自动收缩与手动 toggle 打架。无配对段时返回原数组(短路,避免无谓 re-render)。 */
+export function toggleThinkingSegment(
+  messages: ChatMessage[],
+  messageId: string,
+  segmentId: string,
+): ChatMessage[] {
+  const msg = messages.find((m) => m.id === messageId)
+  if (!msg) return messages
+  const segs = msg.segments ?? []
+  if (!segs.some((s) => s.kind === 'thinking' && s.id === segmentId)) return messages
+  return messages.map((m) =>
+    m.id === messageId
+      ? {
+          ...m,
+          segments: segs.map((s) =>
+            s.kind === 'thinking' && s.id === segmentId ? { ...s, collapsed: !s.collapsed } : s,
+          ),
+        }
+      : m,
+  )
 }
 
 export function useChat() {
@@ -483,6 +581,11 @@ export function useChat() {
     }
   }, [])
 
+  // 翻转思考胶囊展开/收缩:改 segment.collapsed(真相源在 reducer,非 local state)。
+  const toggleThinking = useCallback((messageId: string, segmentId: string) => {
+    setMessages((prev) => toggleThinkingSegment(prev, messageId, segmentId))
+  }, [])
+
   return {
     messages,
     streaming,
@@ -496,5 +599,6 @@ export function useChat() {
     thinkingLevel,
     thinkingLevels,
     setThinking,
+    toggleThinking,
   }
 }

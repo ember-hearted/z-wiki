@@ -36,11 +36,50 @@ test('message_update 的 text_delta 无 delta 不发帧', () => {
   assert.equal(sent.length, 0)
 })
 
-test('message_update 的非 text_delta 事件不发帧(回归:当前不转发 thinking_* 等)', () => {
+test('message_update 的 thinking_start 转发为 thinking_start 帧', () => {
   const { socket, sent } = mockSocket()
   relayEvent(
     socket,
-    { type: 'message_update', assistantMessageEvent: { type: 'thinking_delta', delta: 'x' } },
+    { type: 'message_update', assistantMessageEvent: { type: 'thinking_start' } },
+    noopCtx,
+  )
+  assert.deepEqual(
+    sent.map((s) => JSON.parse(s)),
+    [{ type: 'thinking_start' }],
+  )
+})
+
+test('message_update 的 thinking_delta 转发为 thinking_delta 帧(delta -> text)', () => {
+  const { socket, sent } = mockSocket()
+  relayEvent(
+    socket,
+    { type: 'message_update', assistantMessageEvent: { type: 'thinking_delta', delta: '正在想' } },
+    noopCtx,
+  )
+  assert.deepEqual(
+    sent.map((s) => JSON.parse(s)),
+    [{ type: 'thinking_delta', text: '正在想' }],
+  )
+})
+
+test('message_update 的 thinking_end 转发为 thinking_end 帧', () => {
+  const { socket, sent } = mockSocket()
+  relayEvent(
+    socket,
+    { type: 'message_update', assistantMessageEvent: { type: 'thinking_end' } },
+    noopCtx,
+  )
+  assert.deepEqual(
+    sent.map((s) => JSON.parse(s)),
+    [{ type: 'thinking_end' }],
+  )
+})
+
+test('message_update 的 text_end 等非转发事件不发帧(text_start/text_end/toolcall_* 仍不转发)', () => {
+  const { socket, sent } = mockSocket()
+  relayEvent(
+    socket,
+    { type: 'message_update', assistantMessageEvent: { type: 'text_end' } },
     noopCtx,
   )
   assert.equal(sent.length, 0)

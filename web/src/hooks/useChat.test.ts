@@ -2,7 +2,7 @@
 // 注入 mock ctx(nextId 固定)+ current(streamingId/prevTokens),断言返回的更新。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { applyServerMsg, type ChatMessage } from './useChat.js'
+import { applyServerMsg, toggleThinkingSegment, type ChatMessage } from './useChat.js'
 
 const ctx = { nextId: () => 's1' }
 
@@ -206,4 +206,169 @@ test('未知类型(session_init)-> null', () => {
     prevTokens: null,
   })
   assert.equal(update, null)
+})
+
+// ── thinking segment(ADR-0004 D8 第三环:思考内容转发与渲染)──
+
+test('thinking_start 建思考段(streaming:true, collapsed:false, text:"")', () => {
+  const update = applyServerMsg({ type: 'thinking_start' }, ctx, {
+    streamingId: 'a1',
+    prevTokens: null,
+  })
+  const prev: ChatMessage[] = [{ id: 'a1', role: 'assistant', segments: [] }]
+  assert.deepEqual(update?.messages?.(prev), [
+    {
+      id: 'a1',
+      role: 'assistant',
+      segments: [{ kind: 'thinking', id: 's1', text: '', collapsed: false, streaming: true }],
+    },
+  ])
+})
+
+test('thinking_start 无 streamingId -> 空 update(不崩)', () => {
+  const update = applyServerMsg({ type: 'thinking_start' }, ctx, {
+    streamingId: null,
+    prevTokens: null,
+  })
+  assert.deepEqual(update, {})
+})
+
+test('thinking_delta 追加到最近 streaming 思考段', () => {
+  const update = applyServerMsg({ type: 'thinking_delta', text: 'world' }, ctx, {
+    streamingId: 'a1',
+    prevTokens: null,
+  })
+  const prev: ChatMessage[] = [
+    {
+      id: 'a1',
+      role: 'assistant',
+      segments: [{ kind: 'thinking', id: 't1', text: 'hello ', collapsed: false, streaming: true }],
+    },
+  ]
+  assert.deepEqual(update?.messages?.(prev), [
+    {
+      id: 'a1',
+      role: 'assistant',
+      segments: [
+        { kind: 'thinking', id: 't1', text: 'hello world', collapsed: false, streaming: true },
+      ],
+    },
+  ])
+})
+
+test('thinking_delta 按 streaming 配对:只追加最近 streaming 段,不碰已收缩段', () => {
+  // 场景:第一段思考已 end(收缩),第二段正在 streaming -> delta 只进第二段
+  const update = applyServerMsg(
+    { type: 'thinking_delta', text: '!' },
+    { nextId: () => 's1' },
+    {
+      streamingId: 'a1',
+      prevTokens: null,
+    },
+  )
+  const prev: ChatMessage[] = [
+    {
+      id: 'a1',
+      role: 'assistant',
+      segments: [
+        { kind: 'thinking', id: 't1', text: '旧', collapsed: true, streaming: false },
+        { kind: 'thinking', id: 't2', text: '新', collapsed: false, streaming: true },
+      ],
+    },
+  ]
+  assert.deepEqual(update?.messages?.(prev), [
+    {
+      id: 'a1',
+      role: 'assistant',
+      segments: [
+        { kind: 'thinking', id: 't1', text: '旧', collapsed: true, streaming: false },
+        { kind: 'thinking', id: 't2', text: '新!', collapsed: false, streaming: true },
+      ],
+    },
+  ])
+})
+
+test('thinking_delta 无 streaming 思考段 -> messages 不变(不崩)', () => {
+  const update = applyServerMsg({ type: 'thinking_delta', text: 'x' }, ctx, {
+    streamingId: 'a1',
+    prevTokens: null,
+  })
+  const prev: ChatMessage[] = [
+    {
+      id: 'a1',
+      role: 'assistant',
+      segments: [{ kind: 'text', id: 't1', text: '正文' }],
+    },
+  ]
+  assert.deepEqual(update?.messages?.(prev), prev)
+})
+
+test('thinking_end 置最近 streaming 思考段 collapsed:true, streaming:false', () => {
+  const update = applyServerMsg({ type: 'thinking_end' }, ctx, {
+    streamingId: 'a1',
+    prevTokens: null,
+  })
+  const prev: ChatMessage[] = [
+    {
+      id: 'a1',
+      role: 'assistant',
+      segments: [
+        { kind: 'thinking', id: 't1', text: '一段思考', collapsed: false, streaming: true },
+      ],
+    },
+  ]
+  assert.deepEqual(update?.messages?.(prev), [
+    {
+      id: 'a1',
+      role: 'assistant',
+      segments: [
+        { kind: 'thinking', id: 't1', text: '一段思考', collapsed: true, streaming: false },
+      ],
+    },
+  ])
+})
+
+test('thinking_end 无 streaming 思考段 -> messages 不变(不崩)', () => {
+  const update = applyServerMsg({ type: 'thinking_end' }, ctx, {
+    streamingId: 'a1',
+    prevTokens: null,
+  })
+  const prev: ChatMessage[] = [{ id: 'a1', role: 'assistant', segments: [] }]
+  assert.deepEqual(update?.messages?.(prev), prev)
+})
+
+test('toggleThinkingSegment 翻转指定段 collapsed,不影响其他段', () => {
+  const prev: ChatMessage[] = [
+    {
+      id: 'a1',
+      role: 'assistant',
+      segments: [
+        { kind: 'thinking', id: 't1', text: '甲', collapsed: false, streaming: false },
+        { kind: 'text', id: 't2', text: '正文' },
+        { kind: 'thinking', id: 't3', text: '乙', collapsed: true, streaming: false },
+      ],
+    },
+  ]
+  assert.deepEqual(toggleThinkingSegment(prev, 'a1', 't1'), [
+    {
+      id: 'a1',
+      role: 'assistant',
+      segments: [
+        { kind: 'thinking', id: 't1', text: '甲', collapsed: true, streaming: false },
+        { kind: 'text', id: 't2', text: '正文' },
+        { kind: 'thinking', id: 't3', text: '乙', collapsed: true, streaming: false },
+      ],
+    },
+  ])
+})
+
+test('toggleThinkingSegment 无配对段 -> 内容不变', () => {
+  const prev: ChatMessage[] = [
+    {
+      id: 'a1',
+      role: 'assistant',
+      segments: [{ kind: 'thinking', id: 't1', text: '甲', collapsed: false, streaming: false }],
+    },
+  ]
+  assert.deepEqual(toggleThinkingSegment(prev, 'a1', 'nope'), prev)
 })

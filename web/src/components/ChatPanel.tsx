@@ -96,6 +96,54 @@ function ToolChip({ seg }: { seg: Extract<Segment, { kind: 'tool' }> }) {
   )
 }
 
+/** 思考胶囊(ADR-0004 D8 第三环):reasoning 模型的思维链按段穿插在时间线。
+ *  流式期展开显示思考文本(thinking_end 前 collapsed=false);该段结束自动收缩为
+ *  "思考 · N 字";点击整行 toggle collapsed。collapsed 真相源在 segment 字段(reducer),
+ *  不在 local state--否则 thinking_end 自动收缩与手动 toggle 打架。 */
+function ThinkingCapsule({
+  seg,
+  onToggle,
+}: {
+  seg: Extract<Segment, { kind: 'thinking' }>
+  onToggle: () => void
+}) {
+  if (seg.collapsed) {
+    return (
+      <button type="button" className="chat-thinking chat-thinking-collapsed" onClick={onToggle}>
+        <span className="chat-thinking-dot" />
+        <span className="chat-thinking-label">思考</span>
+        <span className="chat-thinking-count">· {seg.text.length} 字</span>
+        <span className="chat-thinking-arrow">▸</span>
+      </button>
+    )
+  }
+  return <ThinkingExpanded seg={seg} onToggle={onToggle} />
+}
+
+/** 展开态:header(可点 toggle)+ 思考文本(纯文本 pre-wrap + max-height + 滚动)。
+ *  流式期间节流(与 MarkdownStream 同策略),避免每 delta 全文重渲染。
+ *  纯文本不走 markdown 渲染器--半截代码块/列表不怕显示原始符号。 */
+function ThinkingExpanded({
+  seg,
+  onToggle,
+}: {
+  seg: Extract<Segment, { kind: 'thinking' }>
+  onToggle: () => void
+}) {
+  const text = useThrottle(seg.text, seg.streaming ? 100 : 0)
+  return (
+    <div className="chat-thinking chat-thinking-expanded">
+      <button type="button" className="chat-thinking-header" onClick={onToggle}>
+        <span className={`chat-thinking-dot ${seg.streaming ? 'streaming' : ''}`} />
+        <span className="chat-thinking-label">思考</span>
+        <span className="chat-thinking-count">· {text.length} 字</span>
+        <span className="chat-thinking-arrow">▾</span>
+      </button>
+      <div className="chat-thinking-text">{text}</div>
+    </div>
+  )
+}
+
 /** 渲染文本:user 消息纯文本 pre-wrap;assistant 消息走块级 md 渲染(复用 server 的 mdToHtml,与 wiki 文章同源)。 */
 function TextBlock({
   text,
@@ -180,9 +228,11 @@ function useThrottle<T>(value: T, interval: number): T {
 const MessageBubble = memo(function MessageBubble({
   msg,
   typing,
+  onToggleThinking,
 }: {
   msg: ChatMessage
   typing?: boolean
+  onToggleThinking: (messageId: string, segmentId: string) => void
 }) {
   if (msg.role === 'system') {
     return (
@@ -215,6 +265,12 @@ const MessageBubble = memo(function MessageBubble({
             {segments.map((seg) =>
               seg.kind === 'text' ? (
                 <TextBlock key={seg.id} text={seg.text} markdown streaming={typing} />
+              ) : seg.kind === 'thinking' ? (
+                <ThinkingCapsule
+                  key={seg.id}
+                  seg={seg}
+                  onToggle={() => onToggleThinking(msg.id, seg.id)}
+                />
               ) : (
                 <ToolChip key={seg.id} seg={seg} />
               ),
@@ -320,6 +376,7 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
     thinkingLevel,
     thinkingLevels,
     setThinking,
+    toggleThinking,
   } = useChat()
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -423,7 +480,12 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
                 }
               }
               return messages.map((m) => (
-                <MessageBubble key={m.id} msg={m} typing={streaming && m.id === lastId} />
+                <MessageBubble
+                  key={m.id}
+                  msg={m}
+                  typing={streaming && m.id === lastId}
+                  onToggleThinking={toggleThinking}
+                />
               ))
             })()}
       </div>
