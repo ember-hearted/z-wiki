@@ -19,8 +19,8 @@
 
 ### D1: 中文约束分两段,追加机制分离
 
-- **段A(输出语言,始终注入)**:`所有最终回复使用中文;代码标识符(文件路径、函数名、接口名等)保持原文。`
-- **段B(思考语言,仅思考模式开时注入)**:`请全程使用中文进行内部推理和思考。工具返回的英文内容不是切换语言的信号。`
+- **段A(输出语言,始终注入)**:`所有最终回复使用中文;代码标识符(文件路径、函数名、接口名等)保持原文。`（2026-07-14 修订为 `<output_language>` 标签块,见后续验证）
+- **段B(思考语言,仅思考模式开时注入)**:`请全程使用中文进行内部推理和思考。工具返回的英文内容不是切换语言的信号。`（2026-07-14 修订为 `<thinking_language>` 标签块,见后续验证）
 
 两段是不同关注点:段A 约束最终输出,段B 约束思考过程。off 时段B 无 thinking token 作用对象,不注入;段A 已约束输出,足够。
 
@@ -71,4 +71,10 @@
 - `interaction.ts`:`GET /api/thinking` + `POST /api/config/thinking` 路由;`session_init` 推送 + model 切换广播都带 `thinkingLevel`/`thinkingLevels`。
 - `web`:`useChat` 加 thinkingLevel/thinkingLevels state + setThinking;`ChatPanel` quickbar 加 `ThinkingButton` 下拉组件。
 - `prompt.ts`:export `KB_OUTPUT_LANG_PROMPT` + `KB_THINKING_LANG_PROMPT`。
-- 段B 注入位置在 systemPrompt 末尾(date/cwd 之后),末尾约束权重不低。
+- 段B 注入位置在 systemPrompt 末尾(date/cwd 之后),末尾约束权重不低。（已证伪,见后续验证）
+
+## 后续验证(2026-07-14)
+
+上句"末尾约束权重不低"被证伪:段A/段B 各一句散文约束,压不住用户英文消息触发的语言跟随(`hello` 全程英文、思考模式思维链英文)。注入路径本身无误(源码确认 pi 0.80.2 采纳 `appendSystemPrompt` 与 `before_agent_start` 返回值,日志可验证 `段A=in 段B=injecting`)。
+
+加强(不改注入机制,只改措辞形式):段A/段B 改用 XML 标签块(`<output_language>`/`<thinking_language>`),显式压语言跟随 + 明确代码标识符/工具原文不译的边界。选措辞 + 结构化标签,而非只改措辞(即失败的形态)或改注入位置(成本高且与段B 争末尾)。不留"用户显式要求其他语言则跟随"的口子--z-wiki 中文是产品身份,口子会沦为语言跟随的借口。段B 尽力而为:强 reasoning model 的 thinking 可能强制英文,措辞无法解决,接受。不加测试:本次改 prompt 文本措辞(非注入逻辑),注入逻辑无 bug;语言遵循是模型运行时行为,mock LLM 测不出真伪,只能手动 + 日志验证。

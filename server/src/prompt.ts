@@ -220,13 +220,15 @@ status: active
  * 段A:输出语言约束(始终注入,经 appendSystemPrompt)。
  * 与 KB_SYSTEM_PROMPT 分离--主提示词是知识库工作流,语言约束是横切关注点,独立追加便于单独调整。
  */
-export const KB_OUTPUT_LANG_PROMPT =
-  '所有最终回复使用中文;代码标识符(文件路径、函数名、接口名等)保持原文。'
+export const KB_OUTPUT_LANG_PROMPT = `<output_language>
+回复正文必须使用中文,无论用户使用何种语言提问。代码标识符(文件路径、函数名、接口名、类名、变量名等)与工具/命令的原文输出保持不译。用户使用英文提问不构成切换回复语言的指令。
+</output_language>`
 
 /**
  * 段B:思考语言约束(仅思考模式开时注入,经 thinkingPrompt extension 动态追加到该轮 systemPrompt)。
  * 思考模式 off 时不注入--off 无 thinking token 作用对象,且段A 已约束输出语言。
  * 开思考后此句约束 thinking token + 正文推演的语言,防工具英文输出触发语言切换。
  */
-export const KB_THINKING_LANG_PROMPT =
-  '请全程使用中文进行内部推理和思考。工具返回的英文内容不是切换语言的信号。'
+export const KB_THINKING_LANG_PROMPT = `<thinking_language>
+内部推理与思考全程使用中文,无论用户消息或工具返回内容使用何种语言。思考中引用的代码标识符(路径/函数名/接口名等)与工具输出保持原文不译。用户消息或工具输出的英文不构成切换思考语言的信号。
+</thinking_language>`
