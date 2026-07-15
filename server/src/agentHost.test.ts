@@ -5,7 +5,12 @@ import path from 'node:path'
 import os from 'node:os'
 import type { AgentSession } from '@earendil-works/pi-coding-agent'
 import type { Api, Model } from '@earendil-works/pi-ai'
-import { reloadAgentConfig, applyModelToSessions, type AgentContext } from './agentHost.js'
+import {
+  reloadAgentConfig,
+  applyModelToSessions,
+  updateConfig,
+  type AgentContext,
+} from './agentHost.js'
 
 const mkTempAgentDir = async (): Promise<{ tmp: string; agentDir: string }> => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'zwiki-agent-'))
@@ -184,5 +189,79 @@ test('applyModelToSessions: 部分失败不中断其他 session(allSettled),失�
   assert.equal(successCalls.length, 2, '失败前后两个 session 仍应 setModel')
   for (const call of successCalls) {
     assert.equal(call, mockModel)
+  }
+})
+
+// ── updateConfig(configPath, mutator):withFileLock 内 read-modify-write + readback ──
+
+const mkTempConfig = async (): Promise<{ tmp: string; configPath: string }> => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'zwiki-updcfg-'))
+  const configPath = path.join(tmp, 'config.json')
+  await fs.writeFile(
+    configPath,
+    JSON.stringify({
+      apiKey: 'k',
+      baseUrl: 'https://h/v1',
+      api: 'openai-completions',
+      model: 'old',
+    }),
+    'utf-8',
+  )
+  return { tmp, configPath }
+}
+
+test('updateConfig: mutator 写入字段 + 返回 readback 后的 config(含 baseUrl 规范化)', async () => {
+  const { tmp, configPath } = await mkTempConfig()
+  try {
+    const result = await updateConfig(configPath, (cfg) => ({
+      ...cfg,
+      model: 'gpt-4o',
+      baseUrl: 'https://h/v1/chat/completions', // 带 suffix,验证 readback 走 writeConfig 规范化
+    }))
+    assert.equal(result.model, 'gpt-4o')
+    assert.equal(result.baseUrl, 'https://h/v1', 'readback 应是 writeConfig 规范化后的值')
+    const onDisk = JSON.parse(await fs.readFile(configPath, 'utf-8')) as {
+      model: string
+      baseUrl: string
+    }
+    assert.equal(onDisk.model, 'gpt-4o')
+    assert.equal(onDisk.baseUrl, 'https://h/v1')
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true })
+  }
+})
+
+test('updateConfig: mutator 收到当前 disk config(read-modify-write 语义)', async () => {
+  const { tmp, configPath } = await mkTempConfig()
+  try {
+    let seen: string | undefined
+    await updateConfig(configPath, (cfg) => {
+      seen = cfg.model
+      return { ...cfg, model: `${cfg.model}-new` }
+    })
+    assert.equal(seen, 'old', 'mutator 应收到 readConfig 的当前 disk 值')
+    const onDisk = JSON.parse(await fs.readFile(configPath, 'utf-8')) as { model: string }
+    assert.equal(onDisk.model, 'old-new')
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true })
+  }
+})
+
+test('updateConfig: 同路径并发调用串行化(无 lost update)', async () => {
+  const { tmp, configPath } = await mkTempConfig()
+  try {
+    // A 改 apiKey、B 改 model。串行化下两者都落盘;交错 race 下后写者用 stale 读覆盖先写者字段。
+    await Promise.all([
+      updateConfig(configPath, (cfg) => ({ ...cfg, apiKey: 'a' })),
+      updateConfig(configPath, (cfg) => ({ ...cfg, model: 'b' })),
+    ])
+    const onDisk = JSON.parse(await fs.readFile(configPath, 'utf-8')) as {
+      apiKey: string
+      model: string
+    }
+    assert.equal(onDisk.apiKey, 'a', 'A 的 apiKey 不应被 B 的 stale 读覆盖(串行化)')
+    assert.equal(onDisk.model, 'b', 'B 的 model 应落盘')
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true })
   }
 })

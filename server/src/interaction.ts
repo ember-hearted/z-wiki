@@ -20,6 +20,7 @@ import {
   createIngestSession as defaultCreateIngestSession,
   reloadAgentConfig,
   resolveModel,
+  updateConfig,
   withFileLock,
 } from './agentHost.js'
 import { API_SPECS } from './apiSpecs.js'
@@ -556,23 +557,17 @@ export async function createInteraction(
       return reply.code(400).send({ error: 'contextWindow 必须是正整数' })
     }
 
-    // 写 config(writeConfig 规范化 baseUrl),锁内 read-modify-write 后读回规范化值喂 reload
-    const updatedCfg = await withFileLock(configPath, async () => {
-      const cfg = readConfig(configPath)
-      cfg.baseUrl = body.baseUrl as string
-      cfg.api = body.api as string
-      cfg.model = body.model as string
-      cfg.apiKey = body.apiKey as string
-      if (contextWindowNum !== undefined) {
-        cfg.contextWindow = contextWindowNum
-      }
-      // reasoning:前端勾选框传 boolean(显式覆盖自动);undefined 不改(保持原 config.reasoning)。
-      if (typeof body.reasoning === 'boolean') {
-        cfg.reasoning = body.reasoning
-      }
-      writeConfig(configPath, cfg)
-      return readConfig(configPath)
-    })
+    // 写 config(updateConfig:锁内 read-modify-write + readback 规范化),读回规范化值喂 reload
+    const updatedCfg = await updateConfig(configPath, (cfg) => ({
+      ...cfg,
+      baseUrl: body.baseUrl as string,
+      api: body.api as string,
+      model: body.model as string,
+      apiKey: body.apiKey as string,
+      // contextWindow / reasoning:仅在提供时覆盖(条件展开,保持原"undefined 不改"语义)
+      ...(contextWindowNum !== undefined ? { contextWindow: contextWindowNum } : {}),
+      ...(typeof body.reasoning === 'boolean' ? { reasoning: body.reasoning } : {}),
+    }))
 
     // 冷重载:refresh modelRegistry + setRuntimeApiKey + resolveModel(D5)
     // 注意:config.json 已写入,即使 reload 失败配置也已保存——错误信息须如实告知。
@@ -612,11 +607,7 @@ export async function createInteraction(
     if (typeof body.shellPath !== 'string') {
       return reply.code(400).send({ error: '需提供 shellPath(字符串,空表示走自动探测)' })
     }
-    await withFileLock(configPath, async () => {
-      const cfg = readConfig(configPath)
-      cfg.shellPath = body.shellPath as string
-      writeConfig(configPath, cfg)
-    })
+    await updateConfig(configPath, (cfg) => ({ ...cfg, shellPath: body.shellPath as string }))
     req.log.info(
       { shellPath: body.shellPath ? '<set>' : '<empty>' },
       'shellPath saved, restart required',
@@ -639,12 +630,8 @@ export async function createInteraction(
       return reply.code(400).send({ error: '需提供合法 level(off/minimal/low/medium/high/xhigh)' })
     }
     const level = body.level as ThinkingLevel
-    // 写 config(真相源),锁内 read-modify-write
-    await withFileLock(configPath, async () => {
-      const cfg = readConfig(configPath)
-      cfg.thinkingLevel = level
-      writeConfig(configPath, cfg)
-    })
+    // 写 config(真相源),updateConfig 锁内 read-modify-write
+    await updateConfig(configPath, (cfg) => ({ ...cfg, thinkingLevel: level }))
     agentCtx.config.thinkingLevel = level
     // 只切 chat session,不切 ingest(后台编译保持 off)
     const actual = applyThinkingToChatSession([...chatSessions.values()], level)

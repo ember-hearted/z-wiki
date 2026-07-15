@@ -20,6 +20,7 @@ import { kbHooksFactory } from './kbHooks.js'
 import {
   PROVIDER_KEY,
   readConfig,
+  writeConfig,
   writeModelsJson,
   writeShellSettingsJson,
   type ConfigJson,
@@ -362,4 +363,23 @@ export async function withFileLock<T>(filePath: string, fn: () => Promise<T>): P
       writeLocks.delete(filePath)
     }
   }
+}
+
+/**
+ * 原子读改写 config.json:withFileLock 串行化 + readConfig -> mutator -> writeConfig -> readConfig 回读。
+ *
+ * mutator 收到当前 disk config,返回**新** config(不可变,不 mutate 入参);writeConfig 写入并规范化 baseUrl。
+ * 返回 readback 后的 config(已规范化),供冷重载喂给 reloadAgentConfig(同 POST /api/config/llm 原先的
+ * `return readConfig(configPath)` 语义)。串行化保证:同 configPath 并发调用排队执行(切库写 currentVault
+ * 与设置页写 llm/shell/thinking 可能并发,ADR-0003 D7 闭环)。
+ */
+export async function updateConfig(
+  configPath: string,
+  mutator: (cfg: ConfigJson) => ConfigJson,
+): Promise<ConfigJson> {
+  return withFileLock(configPath, async () => {
+    const next = mutator(readConfig(configPath))
+    writeConfig(configPath, next)
+    return readConfig(configPath)
+  })
 }
