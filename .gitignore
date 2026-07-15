@@ -26,3 +26,6 @@ desktop/build/*.png
 /.DS_Store
 /.codebase-memory
 /.playwright-mcp
+
+# Claude Code 个人本地配置(不提交)
+.claude/settings.local.json
