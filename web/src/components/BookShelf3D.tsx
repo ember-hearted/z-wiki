@@ -484,6 +484,9 @@ export default function BookShelf3D({ pages, onBookClick, onIntroDone, theme }: 
   const containerRef = useRef<HTMLDivElement>(null)
   const onIntroDoneRef = useRef(onIntroDone)
   onIntroDoneRef.current = onIntroDone
+  // onBookClick 走 ref 移出 deps：不依赖父组件 useCallback 纪律，避免父组件未 memo 时整场景重建
+  const onBookClickRef = useRef(onBookClick)
+  onBookClickRef.current = onBookClick
 
   // 换皮句柄：主 useEffect 写入，副 useEffect([theme]) 读出换 texture/灯光，不重建场景(ADR-0006 D2')
   const sceneRef = useRef<SceneHandles | null>(null)
@@ -1002,7 +1005,7 @@ export default function BookShelf3D({ pages, onBookClick, onIntroDone, theme }: 
         } // 点击空白：对齐到最近槽
         if (hit.slotIndex === currentSlot) {
           // 已是中心抽出本：再点一次打开文章
-          onBookClick(hit.stem)
+          onBookClickRef.current(hit.stem)
         } else {
           // 滑轨上任意书：演出滑到中心并抽出（不自动打开）
           flyToSlot(hit.slotIndex)
@@ -1345,7 +1348,7 @@ export default function BookShelf3D({ pages, onBookClick, onIntroDone, theme }: 
       renderer.renderLists.dispose()
       sceneRef.current = null
     }
-  }, [pages, onBookClick])
+  }, [pages])
 
   // 主题切换：换 skin/topBotTex/edgeTex + 灯光，不重建场景(ADR-0006 D2')
   useEffect(() => {
