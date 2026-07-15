@@ -43,7 +43,7 @@ test('output: publish flag overrides line count; ≥30 lines default published',
   const root = await makeProject({
     'output/short-published.md': '---\npublish: true\n---\n# Short\n\nshort\n',
     'output/short-draft.md': '# Draft\n\nshort\n',
-    'output/long.md': '# Long\n\n' + longBody(35),
+    'output/long.md': `# Long\n\n${longBody(35)}`,
   })
   try {
     const { pages } = await buildView(root)
@@ -77,11 +77,11 @@ test('fragment wraps prose, excludes frontmatter, renders wikilink + toc', async
     const { fragments, pages } = await buildView(root)
     const frag = fragments.get('01-foo')
     assert.ok(frag, 'fragment present')
-    assert.ok(frag!.startsWith('<article class="prose">'))
-    assert.ok(!frag!.includes('view: true'), 'frontmatter must not leak into fragment')
+    assert.ok(frag?.startsWith('<article class="prose">'))
+    assert.ok(!frag?.includes('view: true'), 'frontmatter must not leak into fragment')
     // [[02-bar]] → <a href="/pages/02-bar">;[[raw/x]] → 纯文本(不生成链接)
-    assert.ok(frag!.includes('href="/pages/02-bar"'))
-    assert.ok(!frag!.includes('href="/pages/raw/x"'))
+    assert.ok(frag?.includes('href="/pages/02-bar"'))
+    assert.ok(!frag?.includes('href="/pages/raw/x"'))
 
     const foo = pages.find((p) => p.stem === '01-foo')
     assert.equal(foo?.title, 'Foo')
