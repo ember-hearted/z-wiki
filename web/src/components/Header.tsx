@@ -69,6 +69,7 @@ export default function Header({ pages, chatOpen, onToggleChat }: HeaderProps) {
     }
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: query 故意进依赖,query 变即重置 selected(results.length 不变时也需重置,否则选中项错位)
   useEffect(() => {
     setOpen(results.length > 0)
     setSelected(0)

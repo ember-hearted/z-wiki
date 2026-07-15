@@ -499,6 +499,7 @@ export default function BookShelf3D({ pages, onBookClick, onIntroDone, theme }: 
   const themeRef = useRef<Theme>(theme)
   themeRef.current = theme
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: theme 故意不进依赖,走副 useEffect([theme]) 换皮不重建场景(ADR-0006 D2')
   useEffect(() => {
     const container = containerRef.current
     if (!container || pages.length === 0) return
@@ -1294,8 +1295,8 @@ export default function BookShelf3D({ pages, onBookClick, onIntroDone, theme }: 
       renderer.dispose()
 
       sharedGeo.dispose()
-      Object.values(edgeTexs).forEach((t) => t.dispose())
-      Object.values(topBotTexs).forEach((t) => t.dispose())
+      Object.values(edgeTexs).forEach((t) => { t.dispose() })
+      Object.values(topBotTexs).forEach((t) => { t.dispose() })
       Object.values(skinPools)
         .flat()
         .forEach((skin) => {

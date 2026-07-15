@@ -48,7 +48,7 @@ function initArticleHeadings(container: HTMLElement, onActive: (id: string) => v
     },
     { rootMargin: '-80px 0px 0px 0px' },
   )
-  headings.forEach((h) => observer.observe(h))
+  headings.forEach((h) => { observer.observe(h) })
   return () => {
     observer.disconnect()
     state.clear()
@@ -179,7 +179,7 @@ export default function Article({ pages }: ArticleProps) {
           <nav className="toc-nav" aria-label="本页目录">
             {toc.map((item: TocItem, i: number) => (
               <a
-                key={i}
+                key={item.text}
                 href={`#s-${i}`}
                 className={`toc-link ${item.level === 'h3' ? 'toc-h3' : ''} ${activeId === `s-${i}` ? 'active' : ''}`}
                 onClick={(e) => {
