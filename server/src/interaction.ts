@@ -35,6 +35,7 @@ import {
   writeConfig,
 } from './config.js'
 import { hasIndexChanged } from './hasIndexChanged.js'
+import { buildIngestPrompt } from './ingestPrompt.js'
 import { rawDir } from './kbLayout.js'
 import { relayEvent, type RelayCtx } from './relayEvent.js'
 import { checkUploadExt } from './uploadExts.js'
@@ -227,20 +228,7 @@ export async function createInteraction(
     })
     ingestSessions.add(session)
 
-    const ext = path.extname(rawName).toLowerCase()
-    const readHint =
-      ext === '.md'
-        ? `1. 读取 raw/${rawName} 内容`
-        : `1. raw/${rawName} 是非 md 文件,用 pandoc 工具转文本读取:pandoc({ filePath: "raw/${rawName}" })`
-    const prompt = [
-      `已上传文件 raw/${rawName}。请按 Ingest 工作流处理:`,
-      readHint,
-      `2. 按 §1 编译规则判断是否编译为 wiki(若该主题已积累 ≥3 篇或单篇 >100 行有独立概念价值)`,
-      `3. 若值得编译:创建/更新 wiki 文章(含 frontmatter view 字段、来源引用 [[raw/${rawName}]]、反向链接),更新 index.md`,
-      `4. 若内容达到产出 output 的条件(如可形成对比分析/报告),可产出 output`,
-      `5. 追加 log.md`,
-      `6. 若判断不值得编译,简短说明并结束`,
-    ].join('\n')
+    const prompt = buildIngestPrompt(rawName)
 
     try {
       await session.prompt(prompt)
