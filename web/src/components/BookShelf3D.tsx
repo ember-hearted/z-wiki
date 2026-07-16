@@ -1145,9 +1145,11 @@ export default function BookShelf3D({ pages, onBookClick, onIntroDone, theme }: 
         }
       }
 
-      // 当前正前方真书槽（固定舞台：滑到中心的书做抽出动作）。
-      // D3（ADR-0015）：clamp 到 realSlots [realMin, realMax]，永不着陆虚拟位。
-      currentSlot = Math.max(realMin, Math.min(realMax, Math.round(-rot.val / effStep)))
+      // 当前正前方槽位（固定舞台：滑到中心的书做抽出动作）。
+      // virtual 滑轨：currentSlot 自由（round 无 clamp，reflow 使 slotIndex ≡ currentSlot mod slots 落回窗口）。
+      // 非 virtual（N≤3 满窗 / N=1,2 补虚拟）：clamp 到 realSlots [realMin, realMax]（D3，防落虚拟）。
+      const rawSlot = Math.round(-rot.val / effStep)
+      currentSlot = virtual ? rawSlot : Math.max(realMin, Math.min(realMax, rawSlot))
 
       // 换皮虚拟化
       if (virtual) reflow()
