@@ -11,6 +11,7 @@
   "scripts": {
     "build": "npm run build -w web && npm run build -w server",
     "desktop": "node desktop/scripts/patch-electron-name.mjs && npm run build && npm run build -w @z-wiki/desktop && electron desktop",
+    "bump": "node scripts/bump-version.mjs",
     "test": "tsx --test \"server/src/**/*.test.ts\" \"desktop/src/**/*.test.ts\" \"web/src/**/*.test.ts\"",
     "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p web/tsconfig.app.json --noEmit && tsc -p scripts/tsconfig.json --noEmit && tsc -p desktop/tsconfig.json --noEmit",
     "lint": "biome lint",
