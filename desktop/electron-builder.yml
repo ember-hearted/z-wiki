@@ -37,6 +37,8 @@ win:
   target:
     - target: nsis
       arch: [x64]
+    - target: portable # 免安装便携包(自解压 exe,双击即跑,不走 NSIS 安装器/进程检测)
+      arch: [x64]
   extraResources:
     - from: resources/bin/win32-${arch}
       to: desktop/resources/bin/win32-${arch}
@@ -61,6 +63,9 @@ nsis:
   include: installer.nsh # desktop/build/installer.nsh:空 customCheckAppRunning 跳过默认 app-running 检测(根治 issue #6865 误报)
   # 安装器文件名 zwiki-setup(历史改名,保留无害):早期据子串匹配推测改的名,真根治靠上面 include。
   artifactName: zwiki-setup-${version}.${ext}
+
+portable:
+  artifactName: zwiki-portable-${version}.${ext} # 便携包名,与 nsis 安装包 zwiki-setup 区分
 
 # app bundle 内容(desktop/ 相对):编译产物 + package.json;排除源码/脚本/资源/图标(资源走 extraResources)。
 asar: false
