@@ -1,4 +1,4 @@
-.PHONY: help install run run-w build typecheck lint format format-check clean package
+.PHONY: help install run run-w build typecheck lint format format-check clean clean-release package
 
 WORKTREE ?= $(CURDIR)
 
@@ -45,3 +45,6 @@ format-check: ## Biome 格式化检查(只读,用于 CI)
 clean: ## 清理构建产物与依赖
 	rm -rf node_modules server/dist web/dist
 	@echo "已清理"
+
+clean-release: ## 清理 release/:删其他平台完整包,保留当前 arch + app/code 包 + unpacked 缓存(ADR-0018 D7)
+	npx tsx scripts/clean-release.ts
