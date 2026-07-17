@@ -15,6 +15,7 @@ import { ensureFirstRun } from './firstRun.js'
 import { ensureToolBins } from './toolBins.js'
 import { checkForUpdate, cleanupOldPatches } from './updater.js'
 import { buildContextMenuTemplate } from './contextMenu.js'
+import { shouldAutoHideMenuBar } from './menuBar.js'
 import { loadWindowBounds, saveWindowBounds } from './windowState.js'
 
 // 应用名:覆盖 Electron 默认"Electron"(macOS 应用菜单/Dock 显示名)。打包后由 Info.plist 接管。
@@ -112,9 +113,9 @@ async function bootstrap(): Promise<void> {
     x: bounds?.x,
     y: bounds?.y,
     icon: iconExists ? iconPath : undefined,
-    // Windows 隐藏窗口内菜单栏(Alt 可呼出);mac 菜单在系统顶部不受此选项影响,保留切片 05 定制菜单。
+    // Windows/Linux 隐藏窗口内菜单栏(Alt 可呼出);mac 菜单在系统顶部不受此选项影响,保留切片 05 定制菜单。
     // 编辑操作(复制/粘贴/全选)靠 Ctrl 快捷键 + 右键菜单,功能不丢。
-    autoHideMenuBar: process.platform === 'win32',
+    autoHideMenuBar: shouldAutoHideMenuBar(process.platform),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
