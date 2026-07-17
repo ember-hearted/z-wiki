@@ -187,8 +187,10 @@ export async function checkForUpdate(opts: {
   }
   if (!plan.package) throw new Error('code 包缺失于 latest.json')
 
+  // latest.json 的 url 可能是相对文件名(02 脚本生成),基于 feedUrl 解析成绝对。
+  const absUrl = new URL(plan.package.url, opts.feedUrl).toString()
   const dest = path.join(opts.cacheDir, path.basename(plan.package.url))
-  await downloadPackage(plan.package, dest)
+  await downloadPackage({ ...plan.package, url: absUrl }, dest)
   if (!verifySha512(dest, plan.package.sha512)) {
     await fs.rm(dest, { force: true })
     throw new Error('sha512 校验失败')

@@ -110,11 +110,29 @@ function main(): void {
   const releaseDir = path.join(repoRoot, 'release')
   if (!existsSync(releaseDir)) throw new Error('release/ 不存在:先跑 electron-builder')
 
-  const unpackedDir = readdirSync(releaseDir)
-    .map((d) => path.join(releaseDir, d))
-    .find((d) => d.endsWith('-unpacked') && existsSync(path.join(d, 'resources')))
-  if (!unpackedDir) throw new Error('未找到 release/*-unpacked/:先跑 electron-builder')
-  const resourcesDir = path.join(unpackedDir, 'resources')
+  // electron-builder unpacked 目录命名不统一:mac 为 mac/mac-arm64(不带 -unpacked),
+  // win/linux 为 win-unpacked/linux-unpacked。按当前平台选(避免抽到 release/ 里旧平台 unpacked)。
+  const unpackedName =
+    process.platform === 'darwin'
+      ? process.arch === 'arm64'
+        ? 'mac-arm64'
+        : 'mac'
+      : process.platform === 'win32'
+        ? process.arch === 'arm64'
+          ? 'win-arm64-unpacked'
+          : 'win-unpacked'
+        : process.arch === 'arm64'
+          ? 'linux-arm64-unpacked'
+          : 'linux-unpacked'
+  const unpackedDir = path.join(releaseDir, unpackedName)
+  // mac unpacked 的 resources 在 .app/Contents/Resources/;win/linux 在 unpacked/resources/
+  const resourcesDir =
+    process.platform === 'darwin'
+      ? path.join(unpackedDir, 'z-wiki.app', 'Contents', 'Resources')
+      : path.join(unpackedDir, 'resources')
+  if (!existsSync(path.join(resourcesDir, 'app'))) {
+    throw new Error(`未找到 ${resourcesDir}/app:先跑 electron-builder`)
+  }
 
   const desktop = readDesktopPkg(repoRoot)
   const tools = readToolVersions(repoRoot)
