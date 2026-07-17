@@ -240,17 +240,53 @@
       0 1px 0 rgba(255, 255, 255, 0.06) inset,
       0 40px 90px rgba(0, 0, 0, 0.55);
   }
-  .shot img {
-    display: block; width: 100%;
-    transition: transform 0.6s cubic-bezier(0.2, 0.6, 0.2, 1);
-  }
-  .shot figure:hover img { transform: scale(1.012); }
+  .shot img { display: block; width: 100%; }
   .shot figcaption {
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
     padding: 11px 16px; border-top: 1px solid var(--line);
     background: rgba(18, 18, 26, 0.5);
   }
   .shot figcaption .mono b { color: var(--accent-soft); font-weight: 400; }
+
+  /* ---------- 模式轮播(纯 CSS) ---------- */
+  .exhibit-input { position: absolute; opacity: 0; pointer-events: none; }
+  .shot-lede { text-align: center; margin-bottom: 18px; }
+  .mode-switch { display: flex; justify-content: center; margin-bottom: 30px; }
+  .mode-switch label {
+    font-family: var(--mono); font-size: 12px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 8px 20px;
+    border: 1px solid var(--line);
+    background: rgba(39, 39, 48, 0.5);
+    cursor: pointer; user-select: none;
+    transition: color 0.2s, background 0.2s, border-color 0.2s;
+  }
+  .mode-switch label:first-child { border-radius: 999px 0 0 999px; }
+  .mode-switch label:last-child { border-radius: 0 999px 999px 0; border-left: none; }
+  .mode-switch label:hover { color: var(--text-strong); }
+  #ex-shelf:checked ~ .wrap label[for="ex-shelf"],
+  #ex-index:checked ~ .wrap label[for="ex-index"] {
+    color: var(--accent-bright);
+    background: var(--accent-bg);
+    border-color: var(--accent-border);
+  }
+  #ex-shelf:focus-visible ~ .wrap label[for="ex-shelf"],
+  #ex-index:focus-visible ~ .wrap label[for="ex-index"] {
+    outline: 2px solid var(--accent-soft); outline-offset: 3px;
+  }
+  .stage .frames {
+    display: flex;
+    transition: transform 0.55s cubic-bezier(0.3, 0.7, 0.2, 1);
+  }
+  .stage .frame { width: 100%; flex-shrink: 0; }
+  #ex-index:checked ~ .wrap .frames { transform: translateX(-100%); }
+  .plates { display: grid; min-width: 0; }
+  .plates > .plate { grid-area: 1 / 1; transition: opacity 0.3s; }
+  .plates > .p2 { opacity: 0; }
+  .plates.right { justify-items: end; text-align: right; }
+  #ex-index:checked ~ .wrap .p1 { opacity: 0; }
+  #ex-index:checked ~ .wrap .p2 { opacity: 1; }
 
   /* ---------- sections ---------- */
   section.block { padding: 76px 0; border-top: 1px solid var(--line); }
@@ -424,6 +460,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .ticker-track, .hero .tagline .caret { animation: none; }
+    .stage .frames, .plates > .plate { transition: none; }
     html { scroll-behavior: auto; }
   }
 
@@ -483,12 +520,28 @@
 </div>
 
 <div class="shot">
+  <input class="exhibit-input" type="radio" name="exhibit" id="ex-shelf" checked>
+  <input class="exhibit-input" type="radio" name="exhibit" id="ex-index">
   <div class="wrap">
-    <figure>
-      <img src="img/z-wiki-home.png" alt="z-wiki 首页:3D 书架浏览知识库">
+    <p class="shot-lede mono">One archive, two views — 同一份档案,两种看法</p>
+    <div class="mode-switch">
+      <label for="ex-shelf">◈ Shelf · 书架</label>
+      <label for="ex-index">☰ Index · 索引</label>
+    </div>
+    <figure class="stage">
+      <div class="frames">
+        <img class="frame" src="img/z-wiki-home.png" alt="z-wiki 书架模式:3D 书架浏览知识库">
+        <img class="frame" src="img/z-wiki-archive-index.png" alt="z-wiki 索引模式:报告与分析、知识库文章列表">
+      </div>
       <figcaption>
-        <span class="mono"><b>Archive view</b> — 3D 书架首页</span>
-        <span class="mono">Shelf № 001</span>
+        <span class="plates">
+          <span class="mono plate p1"><b>Exhibit 01 · Archive view</b> — 3D 书架首页</span>
+          <span class="mono plate p2"><b>Exhibit 02 · Archive index</b> — 点入书架后的档案索引</span>
+        </span>
+        <span class="plates right">
+          <span class="mono plate p1">Shelf № 001</span>
+          <span class="mono plate p2">Index № 002</span>
+        </span>
       </figcaption>
     </figure>
   </div>
