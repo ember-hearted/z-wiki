@@ -137,7 +137,20 @@ export function maskApiKey(key: string): string {
  * 检测 baseUrl(官方 api.deepseek.com)或 model.id 含 deepseek(覆盖 ark 等代理端点跑 DeepSeek)。
  */
 export function isDeepSeekModel(baseUrl: string, modelId: string): boolean {
-  return baseUrl.includes('deepseek.com') || modelId.includes('deepseek')
+  // baseUrl 按 hostname 精确匹配(子串匹配会被 evil.com/deepseek.com 之类绕过,CodeQL js/incomplete-url-substring-sanitization);
+  // modelId 保持子串匹配:ark 等代理端点跑 DeepSeek 时 baseUrl 与 deepseek.com 无关(ADR-0004 D8)。
+  return isDeepSeekHost(baseUrl) || modelId.includes('deepseek')
+}
+
+/** baseUrl 的 hostname 是否为 deepseek.com 或其子域。非法/空 URL 返回 false。 */
+function isDeepSeekHost(baseUrl: string): boolean {
+  if (!baseUrl) return false
+  try {
+    const { hostname } = new URL(baseUrl.includes('://') ? baseUrl : `https://${baseUrl}`)
+    return hostname === 'deepseek.com' || hostname.endsWith('.deepseek.com')
+  } catch {
+    return false
+  }
 }
 
 /**

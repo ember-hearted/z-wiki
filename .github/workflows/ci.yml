@@ -5,6 +5,10 @@
 # - desktop/resources/bin(rg/fd/pandoc)gitignored,desktopInit.test 缺失时自动 skip(不 fail)
 name: CI
 
+# 最小权限:CI 只读代码,不需要写权限(CodeQL actions/missing-workflow-permissions)
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]

@@ -15,7 +15,13 @@ export function splitFrontmatter(text: string): { body: string; fm: string } {
 }
 
 function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  // 引号也要转义:escapeHtml 的产出会进属性值(data-lang/src/href),不转义 " 可突破属性注入事件属性(XSS)。
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 function parseInline(text: string): string {
@@ -28,8 +34,8 @@ function parseInline(text: string): string {
     stash.push(html)
     return `\u0000${stash.length - 1}\u0000`
   }
-  // 图片 ![alt](url)
-  t = t.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_m, alt, url) =>
+  // 图片 ![alt](url)。alt 字符类排除 [ :否则 ![ + 一长串 [ 会多项式回溯(CodeQL js/polynomial-redos)。
+  t = t.replace(/!\[([^[\]]*)\]\(([^)]+)\)/g, (_m, alt, url) =>
     place(`<img src="${url}" alt="${alt}" />`),
   )
   // wikilink [[a|b]] / [[a]]
@@ -187,7 +193,8 @@ export function mdToHtmlBody(body: string): string {
       out.push(`<p>${parseInline(arr[start])}</p>`)
       continue
     }
-    const hm = /^(#{1,6})\s+(.+)$/.exec(s)
+    // \s+ 后锚 \S 消除回溯歧义(纯空格行不匹配,CodeQL js/polynomial-redos);同一模式见 consumeParagraph/段落中断判断。
+    const hm = /^(#{1,6})\s+(\S.*)$/.exec(s)
     if (hm) {
       const level = hm[1].length
       out.push(`<h${level}>${parseInline(hm[2])}</h${level}>`)
@@ -215,7 +222,7 @@ export function mdToHtmlBody(body: string): string {
         cs.startsWith('```') ||
         cs.startsWith('|') ||
         cs.startsWith('>') ||
-        /^(#{1,6})\s+(.+)$/.test(cs) ||
+        /^(#{1,6})\s+(\S.*)$/.test(cs) ||
         /^[-*+]\s/.test(cs) ||
         /^\d+\.\s/.test(cs) ||
         isHr(cl)
@@ -309,7 +316,7 @@ function consumeParagraph(arr: string[], i: number): number {
       cs.startsWith('```') ||
       cs.startsWith('|') ||
       cs.startsWith('>') ||
-      /^(#{1,6})\s+(.+)$/.test(cs) ||
+      /^(#{1,6})\s+(\S.*)$/.test(cs) ||
       /^[-*+]\s/.test(cs) ||
       /^\d+\.\s/.test(cs) ||
       isHr(arr[i])

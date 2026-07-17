@@ -589,3 +589,22 @@ test('writeShellSettingsJson: 不 mutate 入参 config 对象', async () => {
     await fs.rm(tmp, { recursive: true, force: true })
   }
 })
+
+test('generateModelsJson: baseUrl 子串含 deepseek.com 但 hostname 非官方域,不自动 reasoning', () => {
+  // CodeQL js/incomplete-url-substring-sanitization:'deepseek.com' 可出现在路径或其他域名里,按 hostname 匹配。
+  const json = generateModelsJson({
+    baseUrl: 'https://evil.com/deepseek.com',
+    api: 'openai-completions',
+    model: 'gpt-4o',
+  })
+  assert.equal(json.providers.custom.models[0].reasoning, undefined)
+})
+
+test('generateModelsJson: 无协议 baseUrl 也按 hostname 识别(api.deepseek.com)', () => {
+  const json = generateModelsJson({
+    baseUrl: 'api.deepseek.com/v1',
+    api: 'openai-completions',
+    model: 'deepseek-v4-pro',
+  })
+  assert.equal(json.providers.custom.models[0].reasoning, true)
+})

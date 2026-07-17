@@ -93,3 +93,16 @@ test('fragment wraps prose, excludes frontmatter, renders wikilink + toc', async
     await fs.rm(root, { recursive: true, force: true })
   }
 })
+
+test('summary: 嵌套标签剥离后无残余尖括号(CodeQL js/incomplete-multi-character-sanitization)', async () => {
+  const root = await makeProject({
+    'wiki/01-xss.md': '# X\n\n<scr<script>ipt> alert(1)\n',
+  })
+  try {
+    const { pages } = await buildView(root)
+    const summary = pages.find((p) => p.stem === '01-xss')?.summary ?? ''
+    assert.ok(!summary.includes('<') && !summary.includes('>'), `summary 不应含尖括号,实际:${summary}`)
+  } finally {
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})

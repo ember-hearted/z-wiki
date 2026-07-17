@@ -99,3 +99,35 @@ test('parseInline:图片 alt 与 src 同名 _ 不污染 src(回归 <em> 注入 s
   assert.ok(out.includes('src="file:///x/raw/01_tk.md"'), `src 应原样,实际:${out}`)
   assert.ok(!out.includes('<em>'), `不应有 <em> 污染,实际:${out}`)
 })
+
+test('XSS: fence 语言标记的引号不突破 data-lang/class 属性(escapeHtml 转义引号)', () => {
+  const out = mdToHtml('```js" onmouseover="alert(1)\ncode\n```')
+  assert.ok(!out.includes('" onmouseover="'), `属性注入应被中和,实际:${out}`)
+  assert.ok(out.includes('&quot;'), `引号应被转义,实际:${out}`)
+})
+
+test('XSS: 图片 url 的引号不突破 src 属性', () => {
+  const out = mdToHtml('![a](x" onerror="alert(1))')
+  assert.ok(!out.includes('" onerror="'), `属性注入应被中和,实际:${out}`)
+})
+
+test('XSS: 链接 url 的引号不突破 href 属性', () => {
+  const out = mdToHtml('[t](x" onclick="alert(1))')
+  assert.ok(!out.includes('" onclick="'), `属性注入应被中和,实际:${out}`)
+})
+
+test('XSS: wikilink 目标的引号不突破 href 属性', () => {
+  const out = mdToHtml('[[a" onclick="alert(1)]]')
+  assert.ok(!out.includes('" onclick="'), `属性注入应被中和,实际:${out}`)
+})
+
+test('ReDoS: ![ 后大量 [ 不多项式回溯(alt 字符类排除 [)', () => {
+  // 修复前 /!\[([^\]]*)\]/ 在此输入上 O(n²) 回溯;排除 [ 后每个起点 O(1) 失败。
+  const out = mdToHtml(`![${'['.repeat(5000)}`)
+  assert.ok(out.length > 0)
+})
+
+test('标题: # 后正文以非空白开头仍正常渲染(\\S 锚定不改正常语义)', () => {
+  assert.equal(mdToHtml('# 标题'), '<h1>标题</h1>')
+  assert.equal(mdToHtml('###   多级  空格'), '<h3>多级  空格</h3>')
+})
