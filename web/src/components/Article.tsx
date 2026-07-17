@@ -48,7 +48,9 @@ function initArticleHeadings(container: HTMLElement, onActive: (id: string) => v
     },
     { rootMargin: '-80px 0px 0px 0px' },
   )
-  headings.forEach((h) => { observer.observe(h) })
+  headings.forEach((h) => {
+    observer.observe(h)
+  })
   return () => {
     observer.disconnect()
     state.clear()
