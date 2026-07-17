@@ -18,14 +18,17 @@ interface IngestEvent {
 
 /**
  * 判定事件命中的里程碑百分比(ADR-0019)。
- * 非 tool_execution_start 或非里程碑工具/路径 -> null。路径取 args.file_path(read/write/edit)
- * 或 args.filePath(pandoc),小写化匹配。server 维护 currentPercent = max(current, 返回值)。纯函数,便于单测。
+ * 非 tool_execution_start 或非里程碑工具/路径 -> null。路径取 args.path(read)/args.file_path(write/edit)
+ * /args.filePath(pandoc),小写化匹配。server 维护 currentPercent = max(current, 返回值)。纯函数,便于单测。
  */
 export function classifyMilestone(event: IngestEvent): number | null {
   if (event.type !== 'tool_execution_start') return null
   const tool = event.toolName
-  const args = event.args as { file_path?: string; filePath?: string } | null | undefined
-  const raw = args?.file_path ?? args?.filePath
+  const args = event.args as
+    | { file_path?: string; filePath?: string; path?: string }
+    | null
+    | undefined
+  const raw = args?.file_path ?? args?.filePath ?? args?.path
   if (!tool || !raw) return null
   const p = raw.toLowerCase()
   if ((tool === 'read' || tool === 'pandoc') && p.includes('raw/')) return 15

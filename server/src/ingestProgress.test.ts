@@ -1,5 +1,6 @@
 // ingestProgress.test.ts - ingest 里程碑进度纯函数单测(ADR-0019)。
 // classifyMilestone:tool_execution_start + 工具/路径 -> 里程碑百分比;nextAnchor:锚点序列下一。
+// 字段:read 用 path(read.d.ts)、write/edit 用 file_path、pandoc 用 filePath(makePandocTool schema)。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { classifyMilestone, nextAnchor, INGEST_PROGRESS_ANCHORS } from './ingestProgress.js'
@@ -9,7 +10,7 @@ import { classifyMilestone, nextAnchor, INGEST_PROGRESS_ANCHORS } from './ingest
 test('classifyMilestone: 非 tool_execution_start -> null', () => {
   for (const type of ['message_update', 'tool_execution_end', 'agent_end']) {
     assert.equal(
-      classifyMilestone({ type, toolName: 'read', args: { file_path: 'raw/x.docx' } }),
+      classifyMilestone({ type, toolName: 'read', args: { path: 'raw/x.docx' } }),
       null,
       `${type} 应 null`,
     )
@@ -18,12 +19,12 @@ test('classifyMilestone: 非 tool_execution_start -> null', () => {
 
 // ── classifyMilestone:各里程碑命中 ────────────────────────────────────
 
-test('classifyMilestone: read/pandoc raw -> 15(pandoc 用 filePath 字段)', () => {
+test('classifyMilestone: read/pandoc raw -> 15(read 用 path,pandoc 用 filePath)', () => {
   assert.equal(
     classifyMilestone({
       type: 'tool_execution_start',
       toolName: 'read',
-      args: { file_path: 'raw/x.docx' },
+      args: { path: 'raw/x.docx' },
     }),
     15,
   )
@@ -37,7 +38,7 @@ test('classifyMilestone: read/pandoc raw -> 15(pandoc 用 filePath 字段)', () 
   )
 })
 
-test('classifyMilestone: write/edit wiki -> 50', () => {
+test('classifyMilestone: write/edit wiki -> 50(write/edit 用 file_path)', () => {
   assert.equal(
     classifyMilestone({
       type: 'tool_execution_start',
@@ -104,7 +105,7 @@ test('classifyMilestone: read 非 raw(wiki/index)-> null(只 raw 算读取源里
     classifyMilestone({
       type: 'tool_execution_start',
       toolName: 'read',
-      args: { file_path: 'wiki/01.md' },
+      args: { path: 'wiki/01.md' },
     }),
     null,
   )
@@ -112,7 +113,7 @@ test('classifyMilestone: read 非 raw(wiki/index)-> null(只 raw 算读取源里
     classifyMilestone({
       type: 'tool_execution_start',
       toolName: 'read',
-      args: { file_path: 'index.md' },
+      args: { path: 'index.md' },
     }),
     null,
   )
@@ -123,17 +124,14 @@ test('classifyMilestone: 大写路径小写化匹配', () => {
     classifyMilestone({
       type: 'tool_execution_start',
       toolName: 'read',
-      args: { file_path: 'RAW/X.DOCX' },
+      args: { path: 'RAW/X.DOCX' },
     }),
     15,
   )
 })
 
 test('classifyMilestone: 无 toolName / 无 args / 无路径 -> null', () => {
-  assert.equal(
-    classifyMilestone({ type: 'tool_execution_start', args: { file_path: 'raw/x' } }),
-    null,
-  )
+  assert.equal(classifyMilestone({ type: 'tool_execution_start', args: { path: 'raw/x' } }), null)
   assert.equal(classifyMilestone({ type: 'tool_execution_start', toolName: 'read' }), null)
   assert.equal(
     classifyMilestone({ type: 'tool_execution_start', toolName: 'read', args: {} }),

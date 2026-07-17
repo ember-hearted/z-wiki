@@ -480,7 +480,8 @@ export function useChat() {
           break
         case 'ingest_done':
           emitIngestState({ active: false })
-          setIngest((prev) => (prev ? { ...prev, phase: 'done', percent: 100 } : prev))
+          // 保持当前 percent,done 阶段 useEffect 平滑插值到 100(避免从 15/50 突跳 100)
+          setIngest((prev) => (prev ? { ...prev, phase: 'done' } : prev))
           setMessages((prev) => [
             ...prev,
             { id: nextId(), role: 'system', text: `已处理上传文件 ${msg.raw},知识库已更新` },
@@ -558,6 +559,20 @@ export function useChat() {
     }, 100)
     return () => clearInterval(id)
   }, [ingest?.phase, ingest?.anchor, ingest?.target])
+
+  // ingest done 收尾:从当前 percent 平滑插值到 100(600ms),避免从 15/50 突跳 100。
+  useEffect(() => {
+    if (ingest?.phase !== 'done') return
+    const from = ingest.percent
+    if (from >= 100) return
+    const start = performance.now()
+    const id = setInterval(() => {
+      const t = Math.min(1, (performance.now() - start) / 600)
+      const pct = from + (100 - from) * (1 - (1 - t) ** 3)
+      setIngest((prev) => (prev && prev.phase === 'done' ? { ...prev, percent: pct } : prev))
+    }, 30)
+    return () => clearInterval(id)
+  }, [ingest?.phase])
 
   // 角标淡出:done 1.5s / failed 3s 后清空(结果消息已留消息流,角标只是即时反馈)。
   useEffect(() => {
