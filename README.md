@@ -2,6 +2,8 @@
 
 让知识长出来,变废为宝。
 
+> 项目介绍页:https://asmallmatch.github.io/z-wiki/
+
 硬盘里的 docx、ppt、网页、表格,多半存了就忘。z-wiki 把它们编译成统一的 markdown 知识库,agent 替你读、写、编辑、搜索、串联——零散的文档长成一座能翻阅、能追问的书架。数据在本机,server 走 loopback,本地优先。
 
 ![z-wiki 首页](docs/img/z-wiki-home.png)
