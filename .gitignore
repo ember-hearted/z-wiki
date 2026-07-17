@@ -8,10 +8,8 @@ server/dist/
 .env
 # 引导配置(含明文 apiKey,ADR-0003 D3.1);config.example.json 可提交
 /config.json
-.pi/agent/auth.json
-# models.json 是启动派生产物(从 config.json 生成,ADR-0003 D3.1),不提交
-.pi/agent/models.json
-.pi/agent/sessions/
+# .pi/agent/ 整个是运行时产物(auth.json/models.json/sessions/bin/settings.json 均由启动生成或铺放,不提交)
+.pi/agent/
 /kb
 .claude/plans/
 /.claude/worktrees
