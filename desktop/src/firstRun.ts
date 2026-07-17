@@ -67,7 +67,13 @@ export function writeInitialConfig(configPath: string, kbRoot: string): void {
  * 非首次启动(config.json 已存在)直接返回,不重复复制(验收:二次启动不重复)。
  */
 export function ensureFirstRun(paths: DesktopPaths): void {
-  if (!isFirstRun(paths.configPath)) return
-  copyKbExample(paths.kbExamplePath, paths.kbRoot)
-  writeInitialConfig(paths.configPath, paths.kbRoot)
+  // kb/ 缺失则补复制(无论是否首次:config.json 可能在但 kb/ 被删/未复制成功,需自愈)。
+  // 原逻辑只认 config.json 不存在为首次,kb/ 被手误删后非首次启动直接 return 不补,buildAgentContext 抛错。
+  if (!existsSync(paths.kbRoot)) {
+    copyKbExample(paths.kbExamplePath, paths.kbRoot)
+  }
+  // config.json 不存在(首次启动)才写初始配置;已存在不覆盖(保留用户填的 apiKey 等)。
+  if (isFirstRun(paths.configPath)) {
+    writeInitialConfig(paths.configPath, paths.kbRoot)
+  }
 }
