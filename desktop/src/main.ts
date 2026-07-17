@@ -201,6 +201,26 @@ async function bootstrap(): Promise<void> {
             .then(({ response }) => {
               if (response === 0 && result.downloadUrl) void shell.openExternal(result.downloadUrl)
             })
+        } else if (result.action === 'error') {
+          // 网络/校验类(silent)自动重试不打扰;apply 失败需用户行动,弹窗提示。
+          if (result.silent) {
+            interaction?.log.warn({ result }, 'update check failed (will retry)')
+          } else {
+            void dialog
+              .showMessageBox(mainWindow, {
+                type: 'warning',
+                title: '更新失败',
+                message: '更新失败',
+                detail: result.downloadUrl
+                  ? `${result.message}\n\n也可点"去下载"获取完整包重装。`
+                  : result.message,
+                buttons: result.downloadUrl ? ['去下载', '知道了'] : ['知道了'],
+              })
+              .then(({ response }) => {
+                if (response === 0 && result.downloadUrl)
+                  void shell.openExternal(result.downloadUrl)
+              })
+          }
         } else {
           interaction?.log.info({ result }, 'update check')
         }

@@ -8,8 +8,10 @@ import path from 'node:path'
 import os from 'node:os'
 import {
   applyPendingUpdate,
+  CODE_PATCH_PATHS,
   fullPackageKey,
   readUpdateState,
+  restoreOldPatches,
   selectUpdatePackage,
   writeUpdateState,
 } from './updater.js'
@@ -185,6 +187,46 @@ test('applyPendingUpdate: staging 不存在 -> false,不动 resources', async ()
     )
     assert.equal(applied, false)
     assert.equal(existsSync(path.join(dir, '.update-state.json')), false)
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('applyPendingUpdate: staging 存在但 pending.json 缺失 -> 清损坏 staging,返回 false(防短路卡死)', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'zwiki-pending-'))
+  try {
+    const stagingDir = path.join(dir, 'update-staging')
+    await fs.mkdir(path.join(stagingDir, 'app'), { recursive: true }) // 半写残留,无 pending.json
+    const applied = await applyPendingUpdate(
+      stagingDir,
+      path.join(dir, 'resources'),
+      path.join(dir, '.update-state.json'),
+    )
+    assert.equal(applied, false)
+    assert.equal(existsSync(stagingDir), false)
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('restoreOldPatches: 把已搬走的 .old 还原回目标(覆盖失败回滚)', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'zwiki-restore-'))
+  try {
+    // 模拟半替换:app/dist 已替换(旧 -> .old,新在 target),web/dist 未动
+    const distNew = path.join(dir, 'app/dist')
+    const distOld = path.join(dir, 'app/dist.old')
+    await fs.mkdir(distNew, { recursive: true })
+    await fs.writeFile(path.join(distNew, 'main.js'), 'new')
+    await fs.mkdir(distOld, { recursive: true })
+    await fs.writeFile(path.join(distOld, 'main.js'), 'old')
+
+    await restoreOldPatches(dir, CODE_PATCH_PATHS)
+
+    // target 还原为旧内容,.old 消失
+    assert.equal(await fs.readFile(path.join(dir, 'app/dist/main.js'), 'utf-8'), 'old')
+    assert.equal(existsSync(distOld), false)
+    // 无 .old 的条目不受影响,也不 throw
+    await restoreOldPatches(dir, CODE_PATCH_PATHS)
   } finally {
     await fs.rm(dir, { recursive: true, force: true })
   }
