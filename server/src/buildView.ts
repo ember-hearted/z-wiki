@@ -82,9 +82,9 @@ function extractSummary(mdText: string): string {
     if (s.startsWith('#') || s.startsWith('>') || s.startsWith('```') || s.startsWith('|')) continue
     if (/^(-{3,}|\*{3,}|_{3,})$/.test(s)) continue
     if (/^[-*+]\s/.test(s) || /^\d+\.\s/.test(s)) continue
-    // 剥 HTML 标签后再清掉残余尖括号:<scr<script>ipt> 之类嵌套输入单遍剥离会留 <script(CodeQL js/incomplete-multi-character-sanitization)。
-    // summary 只进 React 文本插值/canvas 文本,剥光尖括号不影响展示。
-    const clean = s.replace(/<[^>]+>/g, '').replace(/[<>]/g, '').replace(/\*\*(.+?)\*\*/g, '$1')
+    // summary 只进 React 文本插值/canvas 文本(无 HTML sink),直接剥光尖括号:
+    // 比 /<[^>]+>/ 剥标签彻底,嵌套标签(<scr<script>ipt>)也不留残(CodeQL js/incomplete-multi-character-sanitization)。
+    const clean = s.replace(/[<>]/g, '').replace(/\*\*(.+?)\*\*/g, '$1')
     return clean.slice(0, 120)
   }
   return ''

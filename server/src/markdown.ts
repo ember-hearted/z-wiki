@@ -34,8 +34,9 @@ function parseInline(text: string): string {
     stash.push(html)
     return `\u0000${stash.length - 1}\u0000`
   }
-  // 图片 ![alt](url)。alt 字符类排除 [ :否则 ![ + 一长串 [ 会多项式回溯(CodeQL js/polynomial-redos)。
-  t = t.replace(/!\[([^[\]]*)\]\(([^)]+)\)/g, (_m, alt, url) =>
+  // 图片 ![alt](url)。alt 排除 [(防 ![+长串[ 回溯);url 排除圆括号(防 ![]( 重复串多项式回溯,
+  // CodeQL js/polynomial-redos;含括号 URL 用旧正则本就截断在首个 ),不匹配渲染为纯文本更直观)。
+  t = t.replace(/!\[([^[\]]*)\]\(([^()]+)\)/g, (_m, alt, url) =>
     place(`<img src="${url}" alt="${alt}" />`),
   )
   // wikilink [[a|b]] / [[a]]
