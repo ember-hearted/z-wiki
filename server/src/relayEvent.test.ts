@@ -179,10 +179,7 @@ test('agent_end 最终失败的 assistant 消息 -> error 帧(在 done 前)透�
   )
   assert.deepEqual(
     sent.map((s) => JSON.parse(s)),
-    [
-      { type: 'error', text: '400 bad request' },
-      { type: 'done' },
-    ],
+    [{ type: 'error', text: '400 bad request' }, { type: 'done' }],
   )
 })
 
@@ -195,10 +192,7 @@ test('agent_end error 缺 errorMessage -> 兜底文案', () => {
   )
   assert.deepEqual(
     sent.map((s) => JSON.parse(s)),
-    [
-      { type: 'error', text: 'LLM 请求失败' },
-      { type: 'done' },
-    ],
+    [{ type: 'error', text: 'LLM 请求失败' }, { type: 'done' }],
   )
 })
 
