@@ -26,6 +26,8 @@ desktop/build/*.png
 /.DS_Store
 /.codebase-memory
 /.playwright-mcp
+# 各工作流的临时 issue/PRD 笔记与排查脚本(一次性 scratch,不提交)
+/.scratch/
 
 # Claude Code 个人本地配置(不提交)
 .claude/settings.local.json
