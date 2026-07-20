@@ -349,6 +349,51 @@ export async function createInteraction(
     })
   })
 
+  // ── Ingest 端点:接收文本内容 → raw/ → ingest agent → 返回结果 ─────
+  app.post('/api/ingest', async (req, reply) => {
+    const log = req.log
+    const body = req.body as Record<string, unknown> | undefined
+    const content = body?.content
+    if (typeof content !== 'string' || !content) {
+      return reply.code(400).send({ error: '缺少必填字段 content' })
+    }
+
+    const title = typeof body?.title === 'string' ? body.title : undefined
+    const safeTitle = (title || 'ingest').replace(/[^\w.一-龥-]/g, '_')
+    const rawName = `${safeTitle}-${Date.now()}.md`
+    const rawPath = path.join(rawDir(currentKbRoot), rawName)
+
+    await withFileLock(rawPath, async () => {
+      await fs.mkdir(rawDir(currentKbRoot), { recursive: true })
+      await fs.writeFile(rawPath, content, 'utf-8')
+    })
+    log.info({ rawPath: rawName }, 'ingest api: saved to raw/')
+
+    // 起 ingest agent,收集 text_delta 拼出响应
+    let responseText = ''
+    const session = await createIngestSession({
+      ctx: agentCtx,
+      kbRoot: currentKbRoot,
+      onEvent: (event) => {
+        const e = event as { type: string; assistantMessageEvent?: { type: string; delta?: string } }
+        if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'text_delta' && e.assistantMessageEvent.delta) {
+          responseText += e.assistantMessageEvent.delta
+        }
+      },
+    })
+
+    try {
+      await session.prompt(buildIngestPrompt(rawName))
+      log.info('ingest api: agent finished')
+    } finally {
+      session.dispose()
+    }
+
+    await triggerBuild(null)
+
+    return { raw: rawName, response: responseText || '编译完成' }
+  })
+
   // ── Vault 管理 + 配置端点(ADR-0003 D4/D5/D7/D3.1)─────────────────
   // config.json 是真相源,读写均经 withFileLock 串行化(切库写 currentVault 与设置页写 apiKey 可能并发)。
 
