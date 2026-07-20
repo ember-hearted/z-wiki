@@ -1,0 +1,21 @@
+# Release 自动生成模板
+# 用法: gh release create v0.x.x --generate-notes
+# PR 标题/正文首行含 fix/feat/chore/refactor 等关键词会被自动分类
+changelog:
+  categories:
+    - title: ✨ 新功能
+      labels: [feat, feature]
+    - title: 🐛 修复
+      labels: [fix]
+    - title: 🎨 样式
+      labels: [style]
+    - title: 🔧 重构
+      labels: [refactor]
+    - title: 📦 依赖/杂项
+      labels: [chore, deps, build, ci]
+    - title: 🧪 测试
+      labels: [test]
+    - title: 📖 文档
+      labels: [docs]
+    - title: 其他
+      labels: ['*']
