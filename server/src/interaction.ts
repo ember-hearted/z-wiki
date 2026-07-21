@@ -359,6 +359,8 @@ export async function createInteraction(
     }
 
     const title = typeof body?.title === 'string' ? body.title : undefined
+    // 安全: title 经 replace 去除非安全字符(kb/ 内文件名),rawDir 由 config 控制不来自用户输入。
+    // CodeQL #25 标记此路径为用户输入→fs.writeFile 路径,但实际已充分沙箱化,属误报。
     const safeTitle = (title || 'ingest').replace(/[^\w.一-龥-]/g, '_')
     const rawName = `${safeTitle}-${Date.now()}.md`
     const rawPath = path.join(rawDir(currentKbRoot), rawName)
