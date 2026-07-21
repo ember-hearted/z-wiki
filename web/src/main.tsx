@@ -23,3 +23,16 @@ createRoot(document.getElementById('root')!).render(
     </BrowserRouter>
   </StrictMode>,
 )
+
+// 在 React 首次渲染后非关键路径读取用户主题偏好(localStorage 可能因 leveldb 损坏阻塞 ~4s)。
+// index.html 已设默认 theme='archive',此处覆盖为实际偏好;不阻塞首屏。
+setTimeout(() => {
+  try {
+    const theme = localStorage.getItem('theme')
+    if (theme === 'draft' || theme === 'archive') {
+      document.documentElement.setAttribute('data-theme', theme)
+    }
+  } catch {
+    /* localStorage 不可用,保持 index.html 的默认值 */
+  }
+}, 0)

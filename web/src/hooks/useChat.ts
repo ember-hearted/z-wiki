@@ -92,6 +92,7 @@ interface ServerMsg {
     | 'thinking_start'
     | 'thinking_delta'
     | 'thinking_end'
+    | 'a2a_changed'
   text?: string
   tool?: string
   args?: unknown
@@ -100,6 +101,9 @@ interface ServerMsg {
   total?: number
   raw?: string
   percent?: number
+  source?: string
+  enabled?: boolean
+  a2aEnabled?: boolean
   vault?: { path: string; name: string }
   model?: ModelInfo
   stats?: SessionStatsPayload
@@ -399,6 +403,8 @@ export function useChat() {
   const [contextUsage, setContextUsage] = useState<SessionStatsPayload['contextUsage']>(null)
   // ingest 进度角标(上传+编译全过程);null = 无角标
   const [ingest, setIngest] = useState<IngestProgress | null>(null)
+  // A2A 收件开关状态
+  const [a2aEnabled, setA2AEnabled] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
   // 上次累计 tokens(用于 done 时算本轮差值);vault 切换/重连后重置
   const prevTokensRef = useRef<{
@@ -482,7 +488,13 @@ export function useChat() {
           setIngest((prev) => (prev ? { ...prev, phase: 'done' } : prev))
           setMessages((prev) => [
             ...prev,
-            { id: nextId(), role: 'system', text: `已处理上传文件 ${msg.raw},知识库已更新` },
+            {
+              id: nextId(),
+              role: 'system',
+              text: msg.source
+                ? `来自 ${msg.source} 的内容已编译,知识库已更新`
+                : `已处理上传文件 ${msg.raw},知识库已更新`,
+            },
           ])
           break
         case 'ingest_error':
@@ -515,10 +527,15 @@ export function useChat() {
         case 'session_init':
           if (msg.model) setModel(msg.model)
           if (msg.thinkingLevel) setThinkingLevel(msg.thinkingLevel)
+          if (typeof msg.a2aEnabled === 'boolean') setA2AEnabled(msg.a2aEnabled)
           break
         case 'thinking_changed':
           // 思考档位切换广播(自己或同库其他客户端切换):同步 level(可能 clamp)。
           if (msg.thinkingLevel) setThinkingLevel(msg.thinkingLevel)
+          break
+        case 'a2a_changed':
+          // A2A 收件开关切换广播
+          if (typeof msg.enabled === 'boolean') setA2AEnabled(msg.enabled)
           break
       }
     }
@@ -638,6 +655,39 @@ export function useChat() {
     }
   }, [])
 
+  // A2A 收件开关:POST 写 config(不本地乐观更新——server 广播 a2a_changed 推回,同步状态)。
+  const setA2A = useCallback(async (enabled: boolean) => {
+    try {
+      const res = await fetch('/api/config/a2a', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: nextId(),
+            role: 'system',
+            text: `切换 A2A 收件失败:${data.error ?? res.status}`,
+            error: true,
+          },
+        ])
+      }
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: nextId(),
+          role: 'system',
+          text: `切换 A2A 收件出错:${err instanceof Error ? err.message : String(err)}`,
+          error: true,
+        },
+      ])
+    }
+  }, [])
+
   // 切换思考模式(ADR-0021):POST 写 config + chat session.setThinkingLevel。
   // 不本地乐观更新--server broadcast thinking_changed 会推回自己,同步 level(防 clamp 不一致)。
   const setThinking = useCallback(async (level: string) => {
@@ -690,5 +740,7 @@ export function useChat() {
     thinkingLevel,
     setThinking,
     toggleThinking,
+    a2aEnabled,
+    setA2A,
   }
 }

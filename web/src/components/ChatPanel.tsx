@@ -18,6 +18,8 @@ import {
   useChat,
 } from '../hooks/useChat'
 import { shouldScrollToBottom } from './chatScroll'
+import A2AModal from './A2AModal'
+import QuickAction from './QuickAction'
 import { ChatNav } from './chatNav'
 import { CopyButton, getLastTextSegment } from './chatCopy'
 import { useFileDrop } from '../hooks/useFileDrop'
@@ -340,14 +342,27 @@ function ThinkingButton({
   return (
     <button
       type="button"
-      className="chat-quick"
+      className={`chat-quick${on ? ' chat-quick-on' : ''}`}
       onClick={() => onSelect(on ? 'off' : THINKING_ON_LEVEL)}
       disabled={disabled}
       title={on ? '关闭思考' : '开启思考'}
       aria-label="思考模式"
       aria-pressed={on}
     >
-      思考:{level}
+      <svg
+        width="13"
+        height="13"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M12 2a7 7 0 0 0-4.2 12.7c.7.6 1.2 1.4 1.2 2.3V18h6v-1c0-.9.5-1.7 1.2-2.3A7 7 0 0 0 12 2z" />
+        <path d="M9 21c0 .6.4 1 1 1h4c.6 0 1-.4 1-1v-1H9v1z" />
+      </svg>
+      思考:{on ? 'on' : 'off'}
     </button>
   )
 }
@@ -366,8 +381,11 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
     thinkingLevel,
     setThinking,
     toggleThinking,
+    a2aEnabled,
+    setA2A,
   } = useChat()
   const [input, setInput] = useState('')
+  const [a2aModalOpen, setA2AModalOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const userCount = useMemo(() => messages.filter((m) => m.role === 'user').length, [messages])
@@ -493,13 +511,32 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
       </div>
       <ChatNav scrollRef={scrollRef} userCount={userCount} streaming={streaming} />
       <div className="chat-quickbar">
-        <button
-          type="button"
-          className="chat-quick"
+        <QuickAction label="收件" onClick={() => setA2AModalOpen(true)} active={a2aEnabled}>
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+            <path d="M3 7l9 6 9-6" />
+          </svg>
+        </QuickAction>
+        <ThinkingButton
+          level={thinkingLevel}
+          disabled={!connected || streaming}
+          onSelect={(lv) => void setThinking(lv)}
+        />
+        <span className="chat-quick-sep" />
+        <QuickAction
+          label="健康检查"
           onClick={() => send('/skill:health-check')}
           disabled={!connected || streaming}
           title="知识库健康检查"
-          aria-label="健康检查"
         >
           <svg
             width="13"
@@ -513,14 +550,14 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
           >
             <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
           </svg>
-          健康检查
-        </button>
-        <ThinkingButton
-          level={thinkingLevel}
-          disabled={!connected || streaming}
-          onSelect={(lv) => void setThinking(lv)}
-        />
+        </QuickAction>
       </div>
+      <A2AModal
+        open={a2aModalOpen}
+        onClose={() => setA2AModalOpen(false)}
+        a2aEnabled={a2aEnabled}
+        onToggle={(enabled) => void setA2A(enabled)}
+      />
       <div
         className="chat-input-row"
         ref={composerRef}

@@ -779,6 +779,9 @@
   /* 对齐下方 chat-input-row 左边框(border 外侧 = 框 margin sp-3) */
   margin: 0 var(--sp-3);
 }
+/* ── 快捷按钮(健康检查/思考/A2A 收件) ───────────────────────
+   首屏即渲染,::before 呼吸层始终存在(所有按钮共享同一动画时间线),
+   开态仅切 opacity,边框呼吸天然同步(ADR-0016/0021 快速入口)。 */
 .chat-quick {
   display: inline-flex;
   align-items: center;
@@ -792,11 +795,29 @@
   font-size: var(--fs-xs);
   white-space: nowrap;
   cursor: pointer;
+  position: relative;
+  z-index: 0;
   transition:
     color 0.15s,
     border-color 0.15s,
     transform 0.15s;
 }
+
+/* 呼吸渐变边框层:所有按钮共享,动画从首屏同时开始,开态仅切 opacity。
+   inset:-1px 让本层边框恰与原边框位置重叠。 */
+.chat-quick::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1px solid var(--accent-border);
+  animation: a2a-breath 6s ease-in-out infinite;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+  z-index: -1;
+}
+
 .chat-quick:hover:not(:disabled) {
   color: var(--accent-bright);
   border-color: var(--accent-border);
@@ -1004,4 +1025,216 @@
 body.chat-resizing {
   user-select: none;
   cursor: ns-resize;
+}
+
+/* ── A2A 收件按钮呼吸渐变边框 ──────────────────────────── */
+/* 开态:文字亮色 + 无原生边框(露出 ::before 呼吸层) */
+.chat-quick-on {
+  border-color: transparent;
+  color: var(--accent-bright);
+}
+.chat-quick-on::before {
+  opacity: 1;
+}
+
+@keyframes a2a-breath {
+  0%,
+  100% {
+    border-color: var(--accent-border);
+  }
+  50% {
+    border-color: color-mix(in srgb, var(--accent-border) 50%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-quick-on {
+    border-color: var(--accent-bright);
+  }
+  .chat-quick-on::before {
+    opacity: 0;
+  }
+}
+
+/* ── quickbar 分组分隔符 ──────────────────────────────── */
+.chat-quick-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--accent-border);
+  margin: 2px var(--sp-2);
+  flex-shrink: 0;
+  animation: a2a-breath 6s ease-in-out infinite;
+}
+
+/* ── A2A 收件 Modal ───────────────────────────────────── */
+.a2a-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.a2a-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  width: min(520px, calc(100vw - 2rem));
+  max-height: min(85vh, 680px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.a2a-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-3) var(--sp-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.a2a-title {
+  margin: 0;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+
+.a2a-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  cursor: pointer;
+  user-select: none;
+}
+
+.a2a-toggle-text {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.a2a-toggle-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.a2a-toggle-track {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: var(--r-pill);
+  background: var(--border);
+  transition: background 0.2s;
+}
+
+.a2a-toggle-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition:
+    transform 0.2s,
+    background 0.2s;
+}
+
+.a2a-toggle-input:checked + .a2a-toggle-track {
+  background: var(--accent);
+}
+
+.a2a-toggle-input:checked + .a2a-toggle-track::after {
+  transform: translateX(14px);
+  background: var(--surface);
+}
+
+.a2a-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+
+.a2a-close:hover {
+  color: var(--text);
+  background: var(--surface-alt);
+}
+
+.a2a-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  /* 项目滚动条方案(同 article/.toc-sticky / home/.bottom-drawer-body):
+     细条 + 透明轨道 + border 色 thumb */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.a2a-body::-webkit-scrollbar {
+  width: 5px;
+}
+.a2a-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.a2a-body::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--r-pill);
+}
+.a2a-body::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-border);
+}
+
+.a2a-doc {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.a2a-copy {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--accent);
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.a2a-copy:hover {
+  background: var(--accent);
+  color: var(--surface);
+  border-color: var(--accent);
 }

@@ -88,6 +88,7 @@ export async function createInteraction(
     initialCfg.currentVault && existsSync(initialCfg.currentVault)
       ? initialCfg.currentVault
       : opts.kbRoot
+  let a2aEnabled = initialCfg.preferences?.a2aEnabled === true
   const kbExamplePath = opts.kbExamplePath
 
   // 默认 debug:让事件流(app.log.debug "pi event")与请求日志在开发期都可见;
@@ -237,9 +238,9 @@ export async function createInteraction(
       await session.prompt(prompt)
       log.info('ingest finished')
 
-      // 通知对话客户端:ingest 完成 + 触发 build
-      broadcast({ type: 'ingest_done', raw: rawName })
+      // 通知对话客户端:先触发 build 再广播 ingest_done,与 POST /api/ingest 路径一致
       await triggerBuild(null)
+      broadcast({ type: 'ingest_done', raw: rawName })
     } finally {
       activeIngestCount = Math.max(0, activeIngestCount - 1)
       ingestSessions.delete(session)
@@ -284,6 +285,7 @@ export async function createInteraction(
         type: 'session_init',
         model: serializeModel(resolveModel(agentCtx)),
         thinkingLevel: currentThinkingLevel(session, agentCtx.config.thinkingLevel ?? 'off'),
+        a2aEnabled,
       }),
     )
 
@@ -353,11 +355,16 @@ export async function createInteraction(
   app.post('/api/ingest', async (req, reply) => {
     const log = req.log
     const body = req.body as Record<string, unknown> | undefined
+    // A2A 收件守卫
+    if (!a2aEnabled) {
+      return reply.code(403).send({ error: 'A2A 收件未开启，请在 z-wiki 中打开开关后重试' })
+    }
     const content = body?.content
     if (typeof content !== 'string' || !content) {
       return reply.code(400).send({ error: '缺少必填字段 content' })
     }
 
+    const source = typeof body?.source === 'string' ? body.source : undefined
     const title = typeof body?.title === 'string' ? body.title : undefined
     // 安全: title 经 replace 去除非安全字符(kb/ 内文件名),rawDir 由 config 控制不来自用户输入。
     // CodeQL #25 标记此路径为用户输入→fs.writeFile 路径,但实际已充分沙箱化,属误报。
@@ -377,8 +384,15 @@ export async function createInteraction(
       ctx: agentCtx,
       kbRoot: currentKbRoot,
       onEvent: (event) => {
-        const e = event as { type: string; assistantMessageEvent?: { type: string; delta?: string } }
-        if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'text_delta' && e.assistantMessageEvent.delta) {
+        const e = event as {
+          type: string
+          assistantMessageEvent?: { type: string; delta?: string }
+        }
+        if (
+          e.type === 'message_update' &&
+          e.assistantMessageEvent?.type === 'text_delta' &&
+          e.assistantMessageEvent.delta
+        ) {
           responseText += e.assistantMessageEvent.delta
         }
       },
@@ -392,6 +406,12 @@ export async function createInteraction(
     }
 
     await triggerBuild(null)
+
+    broadcast({
+      type: 'ingest_done',
+      raw: rawName,
+      source: source ?? null,
+    })
 
     return { raw: rawName, response: responseText || '编译完成' }
   })
@@ -688,6 +708,27 @@ export async function createInteraction(
     })
     req.log.info({ requested: level, actual }, 'thinking level saved and applied to chat sessions')
     return reply.send({ level: actual })
+  })
+
+  // ── A2A 收件(开关 + WS 广播)────────────────────────────────────
+  app.get('/api/config/a2a', async () => {
+    return { enabled: a2aEnabled }
+  })
+
+  app.post('/api/config/a2a', async (req, reply) => {
+    const body = (req.body ?? {}) as { enabled?: boolean }
+    if (typeof body.enabled !== 'boolean') {
+      return reply.code(400).send({ error: '需提供 enabled(boolean)' })
+    }
+    // 写 config.preferences.a2aEnabled
+    await updateConfig(configPath, (cfg) => ({
+      ...cfg,
+      preferences: { ...cfg.preferences, a2aEnabled: body.enabled },
+    }))
+    a2aEnabled = body.enabled
+    broadcast({ type: 'a2a_changed', enabled: a2aEnabled })
+    req.log.info({ enabled: a2aEnabled }, 'a2a setting saved')
+    return reply.send({ ok: true })
   })
 
   // 前端静态资源托管(ADR-0003 D2.1):prod/桌面形态同端口 serve web/dist,

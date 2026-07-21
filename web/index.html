@@ -6,17 +6,11 @@
     <title>Wiki</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path d='M341.333333 192a128 128 0 0 1 128 128v512H341.333333a213.333333 213.333333 0 0 1-213.333333-213.333333v-341.333334a85.333333 85.333333 0 0 1 85.333333-85.333333h128z m469.333334 0a85.333333 85.333333 0 0 1 85.12 78.933333L896 277.333333l0.085333 334.293334A149.376 149.376 0 0 0 605.866667 661.333333a149.333333 149.333333 0 0 0 173.824 147.328 211.541333 211.541333 0 0 1-85.461334 23.04L682.666667 832h-128v-512a128 128 0 0 1 120.490666-127.786667L682.666667 192h128zM755.2 554.666667a106.666667 106.666667 0 0 1 97.194667 150.698666l3.541333 3.2 28.842667 29.696a42.666667 42.666667 0 0 1-57.216 63.061334l-3.968-3.584-28.842667-29.696a42.922667 42.922667 0 0 1-4.778667-5.888A106.666667 106.666667 0 1 1 755.2 554.666667z' fill='%23000000'/></svg>" />
     <script>
-      // 主题 FOUC 防护：在 React 挂载前据 localStorage 定 data-theme，避免首屏闪烁。
-      // 默认 archive(暗)；localStorage 取到 'draft' 才走浅色。无值/异常都回落 archive。
-      ;(() => {
-        let theme = 'archive'
-        try {
-          if (localStorage.getItem('theme') === 'draft') theme = 'draft'
-        } catch {
-          /* localStorage 不可用时回落 archive */
-        }
-        document.documentElement.setAttribute('data-theme', theme)
-      })()
+      // 首屏设默认主题:不同步读 localStorage,避免 leveldb 损坏时阻塞首屏 4s 白屏。
+      // 存档主题(暗色)兜底;用户偏好由 main.tsx 在 React 挂载后非关键路径读取并切换。
+      // 若用户偏好 draft(浅色),将有一次 archive→draft 的瞬间切换(<1ms CSS vars 置换),
+      // 远优于 4s 白屏。参见 electron-localstorage-leveldb-slow.md。
+      document.documentElement.setAttribute('data-theme', 'archive')
     </script>
   </head>
   <body spellcheck="false">
