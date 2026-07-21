@@ -1,6 +1,6 @@
 ---
 name: health-check
-description: 对知识库进行健康检查,扫描断链、孤儿、空文件、重复文件名、frontmatter 覆盖率。调用 health_check 工具获取结构化结果,解读后归档到 log.md。
+description: 对知识库进行健康检查,扫描断链、孤儿、空文件、重复文件名、promoted-to 检查、frontmatter 覆盖率。调用 health_check 工具获取结构化结果,解读后归档到 log.md。
 disable-model-invocation: true
 ---
 
@@ -16,6 +16,8 @@ disable-model-invocation: true
 - `orphans`:孤儿 wiki(`{rel, stem}`),wiki/ 中未被任何 .md 引用的页面
 - `empties`:空文件(`{rel}`),内容为空或仅 frontmatter
 - `dups`:重复文件名(`{stem, paths}`),同名 .md(不同路径)
+- `stalePromotions`:过期的晋升(`{wikiRel, promotedTo}`),wiki 的 `promoted-to` 指向的 output 已不存在,应清理字段
+- `suggestedPromotions`:建议补 promoted-to(`{wikiStem, outputStem, commonTokens}`),根据 stem 相似度发现 wiki 可能已有对应 output,建议在 wiki frontmatter 加 `promoted-to: <outputStem>`
 - `frontmatterPct`:frontmatter 覆盖率(%)
 - `wikiStats`:wiki/ 每个文件的行数与 frontmatter 状态
 - `fileCount` / `wikiCount`:文件总数 / wiki 篇数
@@ -30,7 +32,8 @@ disable-model-invocation: true
 2. **空文件**:确认是否该删除或补内容。
 3. **孤儿 wiki**:判断是否需要增加入站链接,或确属孤立内容。
 4. **重复文件名**:判断是否该合并或重命名。
-5. **frontmatter 覆盖率**:若 < 80%,提示补 frontmatter。
+5. **建议补 promoted-to**:`suggestedPromotions` 列出 wiki 已有对应 output 但 frontmatter 未标 `promoted-to`——只需在 wiki frontmatter 加 `promoted-to: <outputStem>`,**不要新建 output 文件**(晋升关系已存在)。若 `stalePromotions` 有记录(已标但 output 已删),去掉 wiki 的 `promoted-to` 字段。
+6. **frontmatter 覆盖率**:若 < 80%,提示补 frontmatter。
 
 ### 3. 追加 log.md lint 记录
 
@@ -40,7 +43,7 @@ disable-model-invocation: true
 ## [YYYY-MM-DD] lint | 知识库健康检查
 
 - .md 文件: <fileCount>  wiki: <wikiCount>
-- 断链: <broken.length>  孤儿: <orphans.length>  空文件: <empties.length>  重复: <dups.length>  frontmatter: <frontmatterPct>%
+- 断链: <broken.length>  孤儿: <orphans.length>  空文件: <empties.length>  重复: <dups.length>  promote 过期: <stalePromotions.length>  建议补 promoted-to: <suggestedPromotions.length>  frontmatter: <frontmatterPct>%
 ```
 
 日期用当天。若 `log.md` 已有当天 lint 记录,更新而非重复追加。

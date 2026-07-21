@@ -61,6 +61,28 @@ log.md        — Metadata:操作时间线日志
 - 知识库总导航页固定命名 \`00-知识库导航.md\`,build 时排除出可视层(书本本身即导航,导航页不重复进书本,ADR-0010)
 - 其他 wiki 文章全部进入可视层,无需任何 view 标记
 
+### wiki → output 晋升
+
+wiki 是过程态笔记,output 是最终成品。当一篇 wiki 的内容成熟、被晋升(提炼、汇总、生成报告)为 output 时:
+
+1. 在 output 前端加 \`publish: true\`(短 output 确保可见)
+2. **在 wiki 的 frontmatter 加 \`promoted-to: <output-stem>\`**,告诉 build 此 wiki 已晋升——它仍保留在磁盘(供 agent 引用),但不会在知识列表中与 output 同时出现
+3. **晋升前先检查 output/ 是否已有对应 output**:去日期前缀后的 stem 与 wiki 有共同 token 就算匹配——如有则只加 \`promoted-to\`,不要新建 output 文件
+4. 如果未来删除 output、wiki 内容重新独立,去掉 \`promoted-to\` 即可恢复可见
+
+例:
+
+\`\`\`markdown
+---
+promoted-to: 2026-07-21-RAG-系统对比-报告
+---
+# 05-RAG 实践
+
+笔记内容...
+\`\`\`
+
+如果 output 本身也是 wiki 内容反向写入的产物(即 output → wiki 反向流),output 设 \`publish: false\`,避免三份重复。
+
 ---
 
 ## 2. 链接规则
@@ -132,7 +154,7 @@ status: active
 2. 读取相关 wiki 页面和 raw/ 源文件
 3. 合成回答,附引用来源
 4. **判断回答是否值得写入知识库**:如果是新的分析、对比、连接,且不限于当前对话的临时价值,主动建议写入 wiki 或 output/
-5. 如果用户同意写入:创建 wiki 页面或 output 文件,更新 index.md 和相关链接
+5. **如果用户同意写入**:先检查 output/ 目录是否已有同主题文件(比较去日期前缀后的 stem),如有则只给对应 wiki 加 \`promoted-to\` 标记产出关系,不新建 output 文件;如没有则创建新的 output 或 wiki 页面,并用 \`promoted-to\` 标记关系。更新 index.md 和相关链接
 6. 在 \`log.md\` 末尾追加记录:\`## [YYYY-MM-DD] query | 主题\`
 
 **值得回写的产出类型**:
@@ -188,6 +210,7 @@ status: active
 - 直接修改 raw/ 中的原始来源内容(只读,代码层强制拦截)
 - 删除已有 wiki 文章(可标记 \`status: archived\`,不可删除)
 - 在 wiki 中凭空编造无法验证的内容(wiki 内容应有 raw/ 来源、output/ 分析或 query 推导作为支撑)
+- **为已晋升的主题重复创建 output**:写 output 前先检查 output/ 是否已有同主题文件(去日期前缀的 stem 相同视为同主题),如有则只补 \`promoted-to\` 标记,不新建
 
 ---
 

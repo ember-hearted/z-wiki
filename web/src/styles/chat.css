@@ -208,6 +208,8 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
   padding: var(--sp-4);
   display: flex;
   flex-direction: column;
@@ -754,6 +756,8 @@
   word-break: break-word;
   max-height: 12rem;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 /* 输入区:composer(relative column) + 顶部拖拽手柄 + textarea 占满 + 右下浮层按钮组 */
 .chat-input-row {
@@ -1202,6 +1206,34 @@ body.chat-resizing {
   border-radius: var(--r-pill);
 }
 .a2a-body::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-border);
+}
+
+.chat-messages::-webkit-scrollbar {
+  width: 5px;
+}
+.chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-messages::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--r-pill);
+}
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-border);
+}
+
+.chat-thinking-text::-webkit-scrollbar {
+  width: 5px;
+}
+.chat-thinking-text::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-thinking-text::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--r-pill);
+}
+.chat-thinking-text::-webkit-scrollbar-thumb:hover {
   background: var(--accent-border);
 }
 
