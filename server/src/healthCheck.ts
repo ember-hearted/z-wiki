@@ -64,6 +64,18 @@ export interface DupFile {
   stem: string
   paths: string[]
 }
+export interface StalePromotion {
+  /** wiki 相对路径 */
+  wikiRel: string
+  /** promoted-to 指向的 stem,但对应 output 不存在 */
+  promotedTo: string
+}
+export interface SuggestedPromotion {
+  wikiStem: string
+  outputStem: string
+  /** wiki 与 output 的 stem 中共有的标记(去前缀后) */
+  commonTokens: string[]
+}
 export interface WikiStat {
   stem: string
   lines: number
@@ -76,6 +88,8 @@ export interface HealthReport {
   orphans: OrphanPage[]
   empties: EmptyFile[]
   dups: DupFile[]
+  stalePromotions: StalePromotion[]
+  suggestedPromotions: SuggestedPromotion[]
   frontmatterPct: number
   wikiStats: WikiStat[]
 }
@@ -151,6 +165,65 @@ function isEmptyOrOnlyFrontmatter(content: string): boolean {
   return false
 }
 
+/** 从 frontmatter 中提取字符串字段值。无 frontmatter 或字段不存在返回 null。 */
+function fmFieldStr(content: string, field: string): string | null {
+  if (!content.startsWith('---')) return null
+  const end = content.indexOf('---', 3)
+  if (end === -1) return null
+  const fm = content.slice(3, end)
+  for (const line of fm.split('\n')) {
+    const s = line.trim()
+    if (s.startsWith(`${field}:`)) {
+      const val = s.split(':').slice(1).join(':').trim()
+      return val || null
+    }
+  }
+  return null
+}
+
+/** 去除 wiki stem 前缀 NN- */
+function stripWikiPrefix(stem: string): string {
+  return stem.replace(/^\d+-/, '')
+}
+
+/** 去除 output stem 前缀 YYYY-MM-DD- */
+function stripOutputPrefix(stem: string): string {
+  return stem.replace(/^\d{4}-\d{2}-\d{2}-/, '')
+}
+
+/** 按 - 分词,去空 */
+function tokenize(s: string): string[] {
+  return s.split('-').filter(Boolean)
+}
+
+/** 找出未设 promoted-to 的 wiki 与 output 间可能的晋升关系。 */
+function findSuggestedPromotions(wikiFiles: MdFile[], outputFiles: MdFile[]): SuggestedPromotion[] {
+  const results: SuggestedPromotion[] = []
+  for (const wiki of wikiFiles) {
+    if (fmFieldStr(wiki.content, 'promoted-to')) continue
+    const wikiContent = stripWikiPrefix(wiki.stem)
+    const wikiTokens = new Set(tokenize(wikiContent))
+    let bestMatch: string | null = null
+    let bestCommon: string[] = []
+    let bestScore = 0
+    for (const out of outputFiles) {
+      const outContent = stripOutputPrefix(out.stem)
+      const common = tokenize(outContent).filter((t) => wikiTokens.has(t))
+      // 评分:长 token 权重更高,至少需 1 个 ≥2 字符的 token
+      const score = common.reduce((sum, t) => sum + (t.length >= 2 ? t.length : 0), 0)
+      if (score > bestScore && score >= 2) {
+        bestScore = score
+        bestMatch = out.stem
+        bestCommon = common
+      }
+    }
+    if (bestMatch) {
+      results.push({ wikiStem: wiki.stem, outputStem: bestMatch, commonTokens: bestCommon })
+    }
+  }
+  return results
+}
+
 /**
  * 收集知识库健康检查结果(纯函数,只读扫 kb/,不写盘不 console)。
  * 供 agentHost 的 health_check 工具调用(ADR-0009)。
@@ -200,7 +273,24 @@ export async function collectReport(kbRoot: string): Promise<HealthReport> {
     .filter(([, arr]) => arr.length > 1)
     .map(([stem, paths]) => ({ stem, paths }))
 
-  // 5. frontmatter 覆盖率
+  // 5. promotion 检查
+  const outputDir = path.join(kbRoot, 'output')
+  const outputFiles = files.filter(
+    (f) => f.abs.startsWith(outputDir + path.sep) || f.abs.startsWith(outputDir),
+  )
+  const outputStems = new Set(outputFiles.map((f) => f.stem))
+
+  // 5a. 过期的 promoted-to:wiki 标了 promoted-to 但 output 已不存在
+  const stalePromotions: StalePromotion[] = []
+  for (const w of wikiFiles) {
+    const pt = fmFieldStr(w.content, 'promoted-to')
+    if (pt && !outputStems.has(pt)) {
+      stalePromotions.push({ wikiRel: w.rel, promotedTo: pt })
+    }
+  }
+
+  // 5b. 建议补 promoted-to:未标的 wiki 与 output 之间根据 stem 相似度推断
+  const suggestedPromotions = findSuggestedPromotions(wikiFiles, outputFiles)
   const withFm = files.filter((f) => hasFrontmatter(f.content)).length
   const frontmatterPct = files.length ? Math.round((withFm / files.length) * 100) : 0
 
@@ -218,6 +308,8 @@ export async function collectReport(kbRoot: string): Promise<HealthReport> {
     orphans,
     empties,
     dups,
+    stalePromotions,
+    suggestedPromotions,
     frontmatterPct,
     wikiStats,
   }

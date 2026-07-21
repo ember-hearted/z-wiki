@@ -94,6 +94,47 @@ test('fragment wraps prose, excludes frontmatter, renders wikilink + toc', async
   }
 })
 
+test('wiki: promoted-to 指向存在的 output 时 wiki 页不进入列表', async () => {
+  const root = await makeProject({
+    'wiki/05-RAG-实践.md': '---\npromoted-to: 2026-07-21-RAG-报告\n---\n# RAG 实践\n\nnotes\n',
+    'output/2026-07-21-RAG-报告.md': '---\npublish: true\n---\n# RAG 最终报告\n\nfull report\n',
+  })
+  try {
+    const { pages, fragments } = await buildView(root)
+    assert.ok(stems(pages).has('2026-07-21-RAG-报告'), 'output 仍显示')
+    assert.ok(!stems(pages).has('05-RAG-实践'), 'promoted-to 指向现有 output → wiki 隐藏')
+    assert.ok(!fragments.has('05-RAG-实践'), 'wiki fragment 也不进缓存')
+  } finally {
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
+
+test('wiki: promoted-to 指向不存在的 output 时 wiki 正常显示', async () => {
+  const root = await makeProject({
+    'wiki/05-RAG-实践.md': '---\npromoted-to: 2026-07-21-RAG-报告\n---\n# RAG 实践\n\nnotes\n',
+  })
+  try {
+    const { pages } = await buildView(root)
+    assert.ok(stems(pages).has('05-RAG-实践'), 'output 不存在 → wiki 不隐藏')
+  } finally {
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
+
+test('wiki: promoted-to 导航页仍始终排除', async () => {
+  const root = await makeProject({
+    'wiki/00-知识库导航.md': '---\npromoted-to: 一些-output\n---\n# 导航\n\nx\n',
+    'output/一些-output.md': '---\npublish: true\n---\n# Out\n\nx\n',
+  })
+  try {
+    const { pages } = await buildView(root)
+    assert.ok(!stems(pages).has('00-知识库导航'), '导航页即使有 promoted-to 也排除')
+    assert.ok(stems(pages).has('一些-output'))
+  } finally {
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
+
 test('summary: 嵌套标签剥离后无残余尖括号(CodeQL js/incomplete-multi-character-sanitization)', async () => {
   const root = await makeProject({
     'wiki/01-xss.md': '# X\n\n<scr<script>ipt> alert(1)\n',

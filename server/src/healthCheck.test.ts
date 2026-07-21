@@ -66,6 +66,75 @@ test('collectReport: 重复文件名(raw + wiki 同 stem)', async () => {
   }
 })
 
+test('stalePromotions: wiki 标了 promoted-to 但 output 不存在', async () => {
+  const root = await makeProject({
+    'wiki/05-RAG.md': '---\npromoted-to: 2026-07-21-RAG-报告\n---\n# RAG\n',
+  })
+  try {
+    const r = await collectReport(root)
+    assert.equal(r.stalePromotions.length, 1)
+    assert.equal(r.stalePromotions[0].wikiRel, 'wiki/05-RAG.md')
+    assert.equal(r.stalePromotions[0].promotedTo, '2026-07-21-RAG-报告')
+  } finally {
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
+
+test('stalePromotions: output 存在时不报', async () => {
+  const root = await makeProject({
+    'wiki/05-RAG.md': '---\npromoted-to: 2026-07-21-RAG-报告\n---\n# RAG\n',
+    'output/2026-07-21-RAG-报告.md': '---\npublish: true\n---\n# Out\n',
+  })
+  try {
+    const r = await collectReport(root)
+    assert.equal(r.stalePromotions.length, 0)
+  } finally {
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
+
+test('suggestedPromotions: 根据 stem 共有的 token 推荐晋升关系', async () => {
+  const root = await makeProject({
+    'wiki/05-RAG-实践.md': '# RAG 实践\n',
+    'output/2026-07-21-RAG-系统对比-报告.md': '# RAG 报告\n',
+  })
+  try {
+    const r = await collectReport(root)
+    assert.equal(r.suggestedPromotions.length, 1)
+    assert.equal(r.suggestedPromotions[0].wikiStem, '05-RAG-实践')
+    assert.equal(r.suggestedPromotions[0].outputStem, '2026-07-21-RAG-系统对比-报告')
+    assert.ok(r.suggestedPromotions[0].commonTokens.includes('RAG'))
+  } finally {
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
+
+test('suggestedPromotions: 已设 promoted-to 的 wiki 不再建议', async () => {
+  const root = await makeProject({
+    'wiki/05-RAG-实践.md': '---\npromoted-to: 2026-07-21-RAG-报告\n---\n# RAG 实践\n',
+    'output/2026-07-21-RAG-报告.md': '# RAG 报告\n',
+  })
+  try {
+    const r = await collectReport(root)
+    assert.equal(r.suggestedPromotions.length, 0)
+  } finally {
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
+
+test('suggestedPromotions: 无显著 token 重叠时不误报', async () => {
+  const root = await makeProject({
+    'wiki/01-LLM-基础.md': '# LLM 基础\n',
+    'output/2026-07-21-React-组件重构-报告.md': '# React 报告\n',
+  })
+  try {
+    const r = await collectReport(root)
+    assert.equal(r.suggestedPromotions.length, 0)
+  } finally {
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
+
 test('runHealthCheck 是 collectReport 的别名(同行为)', async () => {
   const root = await makeProject({ 'wiki/x.md': '---\nview: true\n---\n# X\n\nbody\n' })
   try {

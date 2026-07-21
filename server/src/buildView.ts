@@ -43,6 +43,18 @@ function fmField(fm: string, field: string): boolean | null {
   return null
 }
 
+/** 读取 frontmatter 的字符串字段值。 */
+function fmFieldStr(fm: string, field: string): string | null {
+  for (const line of fm.split('\n')) {
+    const s = line.trim()
+    if (s.startsWith(`${field}:`)) {
+      const val = s.split(':').slice(1).join(':').trim()
+      return val || null
+    }
+  }
+  return null
+}
+
 // ── 元信息提取 ───────────────────────────────────────────────
 function extractTitle(text: string): string | null {
   for (const line of text.split('\n')) {
@@ -98,10 +110,20 @@ interface Source {
   type: 'wiki' | 'output'
 }
 
-function shouldPublish(src: Source, mdText: string, minLines: number): boolean {
+function shouldPublish(
+  src: Source,
+  mdText: string,
+  minLines: number,
+  outputStems: Set<string>,
+): boolean {
   if (src.type === 'wiki') {
-    // wiki 全显,仅排除导航页 00-知识库导航(ADR-0010,hardcode stem,与 healthCheck 一致)
-    return src.stem !== '00-知识库导航'
+    // 导航页永远排除(ADR-0010,hardcode stem,与 healthCheck 一致)
+    if (src.stem === '00-知识库导航') return false
+    // 已晋升为 output 的 wiki → 不占用知识列表(仍保留磁盘,供 agent 引用)
+    const { fm } = splitFrontmatter(mdText)
+    const promotedTo = fmFieldStr(fm, 'promoted-to')
+    if (promotedTo && outputStems.has(promotedTo)) return false
+    return true
   }
   // output: publish 标记优先,否则按行数
   const { fm } = splitFrontmatter(mdText)
@@ -138,11 +160,13 @@ async function scanSources(kbRoot: string): Promise<Source[]> {
 // ── 主构建 ───────────────────────────────────────────────────
 export async function buildView(kbRoot: string): Promise<BuildResult> {
   const sources = await scanSources(kbRoot)
+  // 先收集 output stem 集合,供 shouldPublish 判断 wiki 是否已晋升
+  const outputStems = new Set(sources.filter((s) => s.type === 'output').map((s) => s.stem))
   const minLines = DEFAULT_MIN_LINES
   const publishable: Source[] = []
   for (const src of sources) {
     const mdText = await fs.readFile(src.abs, 'utf-8')
-    if (shouldPublish(src, mdText, minLines)) publishable.push(src)
+    if (shouldPublish(src, mdText, minLines, outputStems)) publishable.push(src)
   }
 
   const pages: PageMeta[] = []
