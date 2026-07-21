@@ -24,86 +24,57 @@ const ENTRIES = [
   '.DS_Store',
 ]
 
-test('planCleanRelease: 当前 mac-arm64 -> 删其他平台/arch 完整包 + blockmap', () => {
-  const plan = planCleanRelease(ENTRIES, 'mac-arm64', '0.1.0')
-  assert.deepEqual(
-    plan.delete.sort(),
-    [
-      'z-wiki-0.1.0-linux-x64.AppImage',
-      'z-wiki-0.1.0-mac-x64.dmg',
-      'z-wiki-0.1.0-mac-x64.dmg.blockmap',
-      'z-wiki-0.1.0-win-x64.exe',
-      'z-wiki-0.1.0-win-x64.exe.blockmap',
-      'z-wiki-0.1.0-win-x64.zip',
-    ].sort(),
-  )
+test('planCleanRelease: 所有完整包(dmg/exe/zip/AppImage)+blockmap 全删', () => {
+  const plan = planCleanRelease(ENTRIES)
+  for (const name of [
+    'z-wiki-0.1.0-mac-arm64.dmg',
+    'z-wiki-0.1.0-mac-x64.dmg',
+    'z-wiki-0.1.0-win-x64.exe',
+    'z-wiki-0.1.0-win-x64.zip',
+    'z-wiki-0.1.0-linux-x64.AppImage',
+  ]) {
+    assert.ok(plan.delete.includes(name), `${name} 应被删`)
+  }
 })
 
-test('planCleanRelease: 当前 mac-arm64 -> 保留当前 arch 完整包 + app/code + latest + unpacked', () => {
-  const plan = planCleanRelease(ENTRIES, 'mac-arm64', '0.1.0')
-  assert.ok(plan.keep.includes('z-wiki-0.1.0-mac-arm64.dmg'), '当前 arch dmg 保留')
-  assert.ok(plan.keep.includes('z-wiki-0.1.0-mac-arm64.dmg.blockmap'), '当前 arch blockmap 保留')
-  assert.ok(plan.keep.includes('z-wiki-app-0.1.0.tar.gz'), 'app 包保留')
-  assert.ok(plan.keep.includes('z-wiki-code-0.1.0.tar.gz'), 'code 包保留')
+test('planCleanRelease: 所有增量更新包(app/code tar.gz)全删', () => {
+  const plan = planCleanRelease(ENTRIES)
+  assert.ok(plan.delete.includes('z-wiki-app-0.1.0.tar.gz'), 'app 包删')
+  assert.ok(plan.delete.includes('z-wiki-code-0.1.0.tar.gz'), 'code 包删')
+})
+
+test('planCleanRelease: unpacked 缓存 + latest.json + 中间产物保留', () => {
+  const plan = planCleanRelease(ENTRIES)
   assert.ok(plan.keep.includes('latest.json'), 'latest.json 保留')
   assert.ok(plan.keep.includes('mac-arm64'), 'unpacked 目录保留')
-  assert.ok(plan.keep.includes('win-unpacked'), '其他平台 unpacked 也保留(加速下次打包)')
-  assert.ok(plan.keep.includes('builder-debug.yml'), '中间文件保留')
+  assert.ok(plan.keep.includes('mac'), 'mac 缓存保留')
+  assert.ok(plan.keep.includes('win-unpacked'), 'win 缓存保留')
+  assert.ok(plan.keep.includes('linux-unpacked'), 'linux 缓存保留')
+  assert.ok(plan.keep.includes('builder-debug.yml'), 'builder-debug.yml 保留')
+  assert.ok(plan.keep.includes('.DS_Store'), '.DS_Store 保留')
 })
 
-test('planCleanRelease: 当前 win-x64 -> 删 mac/linux,保留 win exe+zip', () => {
-  const plan = planCleanRelease(ENTRIES, 'win-x64', '0.1.0')
-  assert.ok(plan.keep.includes('z-wiki-0.1.0-win-x64.exe'))
-  assert.ok(plan.keep.includes('z-wiki-0.1.0-win-x64.zip'))
-  assert.ok(plan.keep.includes('z-wiki-0.1.0-win-x64.exe.blockmap'))
-  assert.ok(plan.delete.includes('z-wiki-0.1.0-mac-arm64.dmg'))
-  assert.ok(plan.delete.includes('z-wiki-0.1.0-linux-x64.AppImage'))
-})
-
-test('planCleanRelease: 无完整包时 delete 为空', () => {
-  const plan = planCleanRelease(
-    ['latest.json', 'mac-arm64', 'z-wiki-app-0.1.0.tar.gz'],
+test('planCleanRelease: 多个版本的全删', () => {
+  const mixed = [
+    'z-wiki-0.1.0-mac-arm64.dmg',
+    'z-wiki-0.2.0-mac-arm64.dmg',
+    'z-wiki-app-0.1.0.tar.gz',
+    'z-wiki-app-0.2.0.tar.gz',
+    'latest.json',
     'mac-arm64',
-    '0.1.0',
-  )
+  ]
+  const plan = planCleanRelease(mixed)
+  assert.ok(plan.delete.includes('z-wiki-0.1.0-mac-arm64.dmg'))
+  assert.ok(plan.delete.includes('z-wiki-0.2.0-mac-arm64.dmg'))
+  assert.ok(plan.delete.includes('z-wiki-app-0.1.0.tar.gz'))
+  assert.ok(plan.delete.includes('z-wiki-app-0.2.0.tar.gz'))
+  assert.deepEqual(plan.keep.sort(), ['latest.json', 'mac-arm64'])
+})
+
+test('planCleanRelease: 无成品包 -> delete 为空', () => {
+  const plan = planCleanRelease(['latest.json', 'mac-arm64', 'win-unpacked'])
   assert.equal(plan.delete.length, 0)
   assert.equal(plan.keep.length, 3)
-})
-
-test('planCleanRelease: 旧版本完整包 + 档包全删(发新版后只留当前版本)', () => {
-  const mixed = [
-    ...ENTRIES, // 全 0.1.0
-    'z-wiki-0.2.0-mac-arm64.dmg',
-    'z-wiki-0.2.0-mac-arm64.dmg.blockmap',
-    'z-wiki-0.2.0-mac-x64.dmg',
-    'z-wiki-0.2.0-win-x64.exe',
-    'z-wiki-app-0.2.0.tar.gz',
-    'z-wiki-code-0.2.0.tar.gz',
-  ]
-  const plan = planCleanRelease(mixed, 'mac-arm64', '0.2.0')
-  // 只留 0.2.0 + mac-arm64 的完整包 + 0.2.0 档包 + 非包文件
-  assert.deepEqual(
-    plan.keep.sort(),
-    [
-      'z-wiki-0.2.0-mac-arm64.dmg',
-      'z-wiki-0.2.0-mac-arm64.dmg.blockmap',
-      'z-wiki-app-0.2.0.tar.gz',
-      'z-wiki-code-0.2.0.tar.gz',
-      'latest.json',
-      'mac-arm64',
-      'mac',
-      'win-unpacked',
-      'linux-unpacked',
-      'builder-debug.yml',
-      '.DS_Store',
-    ].sort(),
-  )
-  // 旧版本完整包(含当前 arch)+ 0.2.0 其他 arch + 旧档包全删
-  assert.ok(plan.delete.includes('z-wiki-0.1.0-mac-arm64.dmg'), '旧版本当前 arch 也删')
-  assert.ok(plan.delete.includes('z-wiki-0.2.0-mac-x64.dmg'), '新版本其他 arch 删')
-  assert.ok(plan.delete.includes('z-wiki-0.2.0-win-x64.exe'))
-  assert.ok(plan.delete.includes('z-wiki-app-0.1.0.tar.gz'), '旧版本档包删')
-  assert.ok(plan.delete.includes('z-wiki-code-0.1.0.tar.gz'))
 })
 
 test('currentOsArch: platform + arch -> os-arch 命名', () => {
