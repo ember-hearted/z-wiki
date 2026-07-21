@@ -27,6 +27,7 @@ z-wiki 是三层架构 + 已落地的架构决策。**改任何架构前,先读 
 - `docs/adr/0018-self-hosted-incremental-update.md` -- 自建三档增量更新分发(不走 electron-updater):完整包/应用包/代码包 + baselineVersion/depsVersion/appVersion 三档比对;覆盖式更新绕过 Squirrel 签名约束(mac 不签名也能自动更新);resolves ADR-0003 未决"自动更新策略"。
 - `docs/adr/0020-colored-book-covers.md` -- 书架彩色书皮(书皮按 accent 派生:Archive 深彩混黑 62% / Draft 粉彩混白 58%)+ Archive 色板鲜明化;supersedes ADR-0013 D3'' 的固定书皮色。
 - `docs/adr/0021-thinking-toggle-reasoning-always-on.md` -- 思考控制两档化(quickbar toggle,开=medium)+ `model.reasoning` 恒 true 乐观声明(删 `config.reasoning` 与 available 暴露);supersedes ADR-0004 D8 的 reasoning 部分、ADR-0012 D4/D5。
+- `docs/adr/0022-draft-clean-paper-ink-blue-repalette.md` -- Draft 主题改「净纸白 + 明快墨蓝」清爽现代化,书架两主题同色相族;supersedes ADR-0013 D1''/D3''、ADR-0020 D2 色值。
 
 三层物理边界不动:`kb/`(layer1 数据)/ `web/`(layer2 SPA)/ `server/`(layer3 Fastify+pi agent)各自独立,不互写文件系统。桌面化是在三层之外加 `desktop/` shell,不穿透。
 
@@ -40,6 +41,8 @@ npm test          # 跑 server + desktop + web 的 *.test.ts(tsx --test)
 make lint         # Biome lint(不修改)
 make format       # Biome 格式化(写入)
 make package      # 打包 desktop(electron-builder,默认当前平台;TARGETS="--mac --win --linux" 三平台交叉打包)
+make release      # 单命令发版:三平台打包 + tag + GitHub release + 上传(make release SUMMARY="...")
+make clean-release # 清理 release/成品包,只留打包缓存(加速下次打包)
 make build        # 构建前端 + 后端产物
 ```
 
@@ -85,7 +88,7 @@ git push -u origin HEAD
 ExitWorktree(action="remove")
 
 # 6. 发版
-gh release create v0.x.x --generate-notes
+make release SUMMARY="简短描述(如 A2A 收件 + 轨道球修复)"
 ```
 
 ## Agent skills
