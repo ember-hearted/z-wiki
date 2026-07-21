@@ -29,7 +29,7 @@ const mkTempDirs = async (): Promise<{ tmp: string; agentDir: string; configPath
   return { tmp, agentDir, configPath }
 }
 
-/** mock AgentContext:refresh/setRuntimeApiKey spy,find 返回 mockModel 或 undefined;agentDir 真实(writeModelsJson 落盘)。 */
+/** mock AgentContext:modelRuntime/modelRegistry spy,find 返回 mockModel 或 undefined;agentDir 真实(writeModelsJson 落盘)。 */
 const mkMockCtx = (
   agentDir: string,
   findModel: Model<Api> | undefined,
@@ -49,14 +49,15 @@ const mkMockCtx = (
       api: 'openai-completions',
       model: 'old-model',
     },
+    modelRuntime: {
+      setRuntimeApiKey: async (provider: string, key: string) =>
+        setKeyCalls.push({ provider, key }),
+    },
     modelRegistry: {
-      refresh: () => {
+      refresh: async () => {
         refreshCalls.push(1)
       },
       find: () => findModel,
-    },
-    authStorage: {
-      setRuntimeApiKey: (provider: string, key: string) => setKeyCalls.push({ provider, key }),
     },
   } as unknown as AgentContext
   return { ctx, refreshCalls, setKeyCalls }

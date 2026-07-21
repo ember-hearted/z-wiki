@@ -22,7 +22,10 @@ const FIXES = [
     pkg: 'brace-expansion',
     vulnerable: '5.0.6',
     safe: '5.0.7',
-    nested: path.join(ROOT, 'node_modules/@earendil-works/pi-coding-agent/node_modules/brace-expansion'),
+    nested: path.join(
+      ROOT,
+      'node_modules/@earendil-works/pi-coding-agent/node_modules/brace-expansion',
+    ),
     hoisted: path.join(ROOT, 'node_modules/brace-expansion'),
   },
   {
@@ -49,12 +52,16 @@ async function main() {
 
     // 确认 hoist 的安全版本存在
     if (!existsSync(path.join(fix.hoisted, 'package.json'))) {
-      console.log(`[postinstall] ${fix.pkg}: hoisted safe version not found at ${fix.hoisted}, skipping`)
+      console.log(
+        `[postinstall] ${fix.pkg}: hoisted safe version not found at ${fix.hoisted}, skipping`,
+      )
       continue
     }
     const hoistedPkg = JSON.parse(await readFile(path.join(fix.hoisted, 'package.json'), 'utf-8'))
     if (hoistedPkg.version !== fix.safe) {
-      console.log(`[postinstall] ${fix.pkg}: hoisted version is ${hoistedPkg.version}, expected ${fix.safe}, skipping`)
+      console.log(
+        `[postinstall] ${fix.pkg}: hoisted version is ${hoistedPkg.version}, expected ${fix.safe}, skipping`,
+      )
       continue
     }
 

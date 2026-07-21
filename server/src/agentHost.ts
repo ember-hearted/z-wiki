@@ -2,9 +2,9 @@ import path from 'node:path'
 import { existsSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import {
-  AuthStorage,
   DefaultResourceLoader,
   ModelRegistry,
+  ModelRuntime,
   SessionManager,
   createAgentSession,
   defineTool,
@@ -151,7 +151,7 @@ export interface AgentContextOptions {
 }
 
 export interface AgentContext {
-  authStorage: AuthStorage
+  modelRuntime: ModelRuntime
   modelRegistry: ModelRegistry
   resourceLoader: DefaultResourceLoader
   /** 全局 agent 目录(.pi/agent/)。 */
@@ -161,7 +161,7 @@ export interface AgentContext {
    * = agentDir 上两级(`<x>/.pi/agent` → `<x>`),与 pi `getAgentDir()` 约定一致。
    */
   appRoot: string
-  /** 引导配置(全局真相源,ADR-0003 D3.1)。provider/model 供 resolveModel 用,apiKey 已注入 authStorage。 */
+  /** 引导配置(全局真相源,ADR-0003 D3.1)。provider/model 供 resolveModel 用,apiKey 已运行时注入 ModelRuntime。 */
   config: ConfigJson
 }
 
@@ -191,10 +191,11 @@ export async function buildAgentContext(opts: AgentContextOptions): Promise<Agen
   // 改 shellPath 走 POST /api/config/shell 写 config.json + 重启生效。
   writeShellSettingsJson(agentDir, config)
 
-  // authStorage 用内存后端 + setRuntimeApiKey:apiKey 运行时注入,auth.json 不落盘(ADR-0003 D3.1)。
-  const authStorage = AuthStorage.inMemory()
-  authStorage.setRuntimeApiKey(PROVIDER_KEY, config.apiKey)
-  const modelRegistry = ModelRegistry.create(authStorage, modelsJsonPath)
+  // ModelRuntime 替代 AuthStorage(pi-coding-agent v0.80.10+):create 加载 models.json,
+  // setRuntimeApiKey 运行时注入 apiKey,与旧 AuthStorage.inMemory().setRuntimeApiKey 等同安全。
+  const modelRuntime = await ModelRuntime.create({ modelsPath: modelsJsonPath })
+  await modelRuntime.setRuntimeApiKey(PROVIDER_KEY, config.apiKey)
+  const modelRegistry = new ModelRegistry(modelRuntime)
 
   // 资源加载器:注入知识库系统提示词 + 段A(输出语言)+ 段C(md 规则),始终追加;+ kb 钩子 + 思考语言 extension。
   // 段B(思考语言)不走 appendSystemPrompt--它是 session 级动态(thinkingPromptFactory 按 thinkingLevel 注入)。
@@ -212,7 +213,7 @@ export async function buildAgentContext(opts: AgentContextOptions): Promise<Agen
   })
   await resourceLoader.reload()
 
-  return { authStorage, modelRegistry, resourceLoader, agentDir, appRoot, config }
+  return { modelRuntime, modelRegistry, resourceLoader, agentDir, appRoot, config }
 }
 
 /** 查找配置好的模型,找不到则抛错。 */
@@ -239,8 +240,8 @@ export async function reloadAgentConfig(
   config: ConfigJson,
 ): Promise<Model<Api>> {
   writeModelsJson(ctx.agentDir, config)
-  ctx.modelRegistry.refresh()
-  ctx.authStorage.setRuntimeApiKey(PROVIDER_KEY, config.apiKey)
+  await ctx.modelRegistry.refresh()
+  await ctx.modelRuntime.setRuntimeApiKey(PROVIDER_KEY, config.apiKey)
   ctx.config = config
   return resolveModel(ctx)
 }
@@ -310,8 +311,7 @@ export async function createChatSession(opts: CreateChatSessionOptions): Promise
     model,
     // chat 走 config.thinkingLevel(ADR-0004 D8):持久化在 config.json,运行时切换走 POST /api/config/thinking。
     thinkingLevel: opts.ctx.config.thinkingLevel ?? 'off',
-    authStorage: opts.ctx.authStorage,
-    modelRegistry: opts.ctx.modelRegistry,
+    modelRuntime: opts.ctx.modelRuntime,
     resourceLoader: opts.ctx.resourceLoader,
     // 落盘到 .pi/agent/sessions/chat/——每次连接新建会话文件,不续上下文,历史留档
     sessionManager: SessionManager.create(appRoot, path.join(agentDir, 'sessions', 'chat')),
@@ -345,8 +345,7 @@ export async function createIngestSession(opts: CreateIngestSessionOptions): Pro
     model,
     // ingest 固定 off:后台编译不需思考,省 token;不跟 config.thinkingLevel(ADR-0004 D8)。
     thinkingLevel: INGEST_THINKING_LEVEL,
-    authStorage: opts.ctx.authStorage,
-    modelRegistry: opts.ctx.modelRegistry,
+    modelRuntime: opts.ctx.modelRuntime,
     resourceLoader: opts.ctx.resourceLoader,
     // 持久化到 .pi/sessions/,文件名带时间戳避免覆盖
     sessionManager: SessionManager.create(path.join(agentDir, 'sessions')),

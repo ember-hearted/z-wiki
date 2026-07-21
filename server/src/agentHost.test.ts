@@ -19,7 +19,7 @@ const mkTempAgentDir = async (): Promise<{ tmp: string; agentDir: string }> => {
   return { tmp, agentDir }
 }
 
-/** 构造 mock AgentContext:modelRegistry/authStorage 用 spy,agentDir 真实(验证 writeModelsJson)。 */
+/** 构造 mock AgentContext:modelRuntime/modelRegistry 用 spy,agentDir 真实(验证 writeModelsJson)。 */
 const mkMockCtx = (
   agentDir: string,
   opts: { findModel?: Model<Api> | undefined } = {},
@@ -29,11 +29,13 @@ const mkMockCtx = (
     agentDir,
     appRoot: path.dirname(path.dirname(agentDir)),
     config: { apiKey: '', baseUrl: '', api: 'openai-completions', model: '' },
+    modelRuntime: {
+      setRuntimeApiKey: async () => {},
+    },
     modelRegistry: {
-      refresh: () => {},
+      refresh: async () => {},
       find: () => mockModel,
     },
-    authStorage: { setRuntimeApiKey: () => {} },
   } as unknown as AgentContext
 }
 
@@ -47,15 +49,16 @@ test('reloadAgentConfig: 写 models.json + refresh + setRuntimeApiKey + 更新 c
       agentDir,
       appRoot: tmp,
       config: { apiKey: '', baseUrl: '', api: 'openai-completions', model: '' },
+      modelRuntime: {
+        setRuntimeApiKey: async (provider: string, key: string) =>
+          setKeyCalls.push({ provider, key }),
+      },
       modelRegistry: {
-        refresh: () => {
+        refresh: async () => {
           refreshCalls.push(1)
         },
         find: (provider: string, id: string) =>
           provider === 'custom' && id === 'gpt-4o' ? mockModel : undefined,
-      },
-      authStorage: {
-        setRuntimeApiKey: (provider: string, key: string) => setKeyCalls.push({ provider, key }),
       },
     } as unknown as AgentContext
 
