@@ -9,14 +9,13 @@ import { DEFAULT_EXPOSED_SPECS, normalizeBaseUrl } from './apiSpecs.js'
 // ── schema ────────────────────────────────────────────────────
 
 /**
- * 思考模式等级(与 pi-agent-core ThinkingLevel 对齐:off + minimal..xhigh)。
+ * 思考模式等级(与 pi-agent-core ThinkingLevel 对齐:off + minimal..max)。
  * config 层独立定义 union literal,不 import pi SDK--配置 schema 不耦合 SDK,
  * readConfig 校验需本地枚举(THINKING_LEVELS)。两者结构相同,赋给 pi 参数时兼容。
- * 注:pi-ai 的 EXTENDED_THINKING_LEVELS 含 'max',但 pi-agent-core 的 ThinkingLevel 类型不含
- * (dist 版本),z-wiki 不暴露 max 档(ADR-0004 D8)。
- * UI 只暴露 off/非-off 两档(ADR-0021),config 仍存全档名——持久化保真,呈现层塌缩。
+ * 注:pi-agent-core ThinkingLevel 自 pi-coding-agent v0.80.10+ 含 'max',
+ * 本地同步包含。UI 只暴露 off/非-off 两档(ADR-0021),config 仍存全档名——持久化保真,呈现层塌缩。
  */
-export type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+export type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
 /** 全档列表(供 readConfig 校验 + POST /api/config/thinking 校验)。与 pi-agent-core ThinkingLevel 一致,新增档需同步。 */
 export const THINKING_LEVELS: readonly ThinkingLevel[] = [
@@ -26,6 +25,7 @@ export const THINKING_LEVELS: readonly ThinkingLevel[] = [
   'medium',
   'high',
   'xhigh',
+  'max',
 ]
 
 export interface VaultEntry {

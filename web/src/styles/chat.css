@@ -806,7 +806,7 @@
 /* 呼吸渐变边框层:所有按钮共享,动画从首屏同时开始,开态仅切 opacity。
    inset:-1px 让本层边框恰与原边框位置重叠。 */
 .chat-quick::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: -1px;
   border-radius: inherit;
