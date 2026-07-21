@@ -26,5 +26,22 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "overrides": {
+    "@earendil-works/pi-coding-agent": {
+      "minimatch": {
+        "brace-expansion": "5.0.7"
+      },
+      "@earendil-works/pi-ai": {
+        "@google/genai": {
+          "protobufjs": "7.6.5"
+        }
+      }
+    },
+    "@earendil-works/pi-ai": {
+      "@google/genai": {
+        "protobufjs": "7.6.5"
+      }
+    }
   }
 }
