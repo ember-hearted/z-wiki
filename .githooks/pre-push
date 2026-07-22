@@ -1,0 +1,32 @@
+#!/bin/sh
+# pre-push hook — 推送前门禁:typecheck + lint + test
+# 在 .git/config 设 core.hooksPath=.githooks 启用。
+# 用 `git push --no-verify` 跳过。
+
+set -eu
+
+echo "=== pre-push: typecheck ==="
+npm run typecheck 2>&1 | tail -5 || {
+  echo "✗ typecheck 失败,推送上锁。用 git push --no-verify 强制跳过。"
+  exit 1
+}
+echo "✓ typecheck"
+
+echo ""
+echo "=== pre-push: lint ==="
+npm run lint 2>&1 | tail -3 || {
+  echo "✗ lint 失败,推送上锁。用 git push --no-verify 强制跳过。"
+  exit 1
+}
+echo "✓ lint"
+
+echo ""
+echo "=== pre-push: test ==="
+npm test 2>&1 | tail -5 || {
+  echo "✗ test 失败,推送上锁。用 git push --no-verify 强制跳过。"
+  exit 1
+}
+echo "✓ test"
+
+echo ""
+echo "→ 所有检查通过,推送继续。"
