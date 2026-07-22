@@ -6,13 +6,13 @@
 
 <!-- 选择一个 label,提 PR 后在右侧 Labels 面板打上对应标签 -->
 
-- [ ] feat: 新功能
-- [ ] fix: 修复
-- [ ] style: 样式/UI
-- [ ] refactor: 重构
-- [ ] chore: 杂项/依赖/构建/CI
-- [ ] test: 测试
-- [ ] docs: 文档
+- [ ] feat: New feature
+- [ ] fix: Bug fix
+- [ ] style: Style / UI
+- [ ] refactor: Refactor
+- [ ] chore: Maintenance, dependencies, build, CI
+- [ ] test: Tests
+- [ ] docs: Documentation
 
 ## Worktree 工作流
 

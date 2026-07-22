@@ -1,13 +1,4 @@
-# CI:push/PR 到 main 时跑 typecheck + lint + test,口径对齐本地 make 命令。
-# 说明:
-# - node 22.x 单版本:Electron 38 内置 Node 22,CI 与桌面运行时对齐(桌面项目跑矩阵无意义)
-# - kb_example 已在仓库内(desktopInit.test 引用);kb/ 由测试 mkdtemp 自造,无需准备步骤
-# - desktop/resources/bin(rg/fd/pandoc)gitignored,desktopInit.test 缺失时自动 skip(不 fail)
 name: CI
-
-# 最小权限:CI 只读代码,不需要写权限(CodeQL actions/missing-workflow-permissions)
-permissions:
-  contents: read
 
 on:
   push:
@@ -18,16 +9,28 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [22]
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
         with:
-          node-version: 22.x
-          cache: npm
-      # CI 不跑 electron 运行时,跳过 ~100MB 二进制下载(desktop typecheck 只需包内 .d.ts)
-      - run: npm ci
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - run: npm ci --ignore-scripts
+        name: Install dependencies
+
       - run: npm run typecheck
+        name: Type check
+
       - run: npm run lint
+        name: Lint
+
       - run: npm test
+        name: Test
