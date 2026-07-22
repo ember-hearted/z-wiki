@@ -51,6 +51,7 @@ jobs:
       - run: npm run build
       - run: npm run build -w @z-wiki/desktop
       - run: node desktop/scripts/render-icon.mjs
+      - run: npm run fetch-tool-bins
       - run: cd desktop && npx electron-builder --mac --win
         env:
           GH_TOKEN: ${{ github.token }}
@@ -74,6 +75,7 @@ jobs:
       - run: npm run build
       - run: npm run build -w @z-wiki/desktop
       - run: node desktop/scripts/render-icon.mjs
+      - run: npm run fetch-tool-bins
       - run: cd desktop && npx electron-builder --linux
         env:
           GH_TOKEN: ${{ github.token }}
@@ -98,6 +100,7 @@ jobs:
       - run: npm run build
       - run: npm run build -w @z-wiki/desktop
       - run: node desktop/scripts/render-icon.mjs
+      - run: npm run fetch-tool-bins
       - run: cd desktop && npx electron-builder --linux
         env:
           GH_TOKEN: ${{ github.token }}

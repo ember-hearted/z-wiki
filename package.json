@@ -3,6 +3,7 @@
   "version": "0.4.3",
   "private": true,
   "type": "module",
+  "repository": "ember-hearted/z-wiki",
   "workspaces": [
     "server",
     "web",
@@ -13,6 +14,7 @@
     "desktop": "node desktop/scripts/patch-electron-name.mjs && npm run build && npm run build -w @z-wiki/desktop && electron desktop",
     "bump": "node scripts/bump-version.mjs",
     "postinstall": "node scripts/postinstall.mjs",
+    "fetch-tool-bins": "tsx scripts/fetch-tool-bins.ts --all",
     "test": "tsx --test \"server/src/**/*.test.ts\" \"desktop/src/**/*.test.ts\" \"web/src/**/*.test.ts\" \"scripts/**/*.test.ts\"",
     "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p web/tsconfig.app.json --noEmit && tsc -p scripts/tsconfig.json --noEmit && tsc -p desktop/tsconfig.json --noEmit",
     "lint": "biome lint",
