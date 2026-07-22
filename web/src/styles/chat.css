@@ -511,8 +511,23 @@
   border-left: 3px solid var(--accent-border);
   border-radius: var(--r-sm);
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
   font-size: var(--fs-xs);
   line-height: 1.6;
+}
+.chat-markdown pre::-webkit-scrollbar {
+  height: 6px;
+}
+.chat-markdown pre::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-markdown pre::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--r-pill);
+}
+.chat-markdown pre::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-border);
 }
 .chat-markdown pre code {
   padding: 0;
@@ -895,6 +910,21 @@
   line-height: var(--lh-snug);
   outline: none;
   transition: box-shadow 0.15s;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.chat-input::-webkit-scrollbar {
+  width: 5px;
+}
+.chat-input::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-input::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--r-pill);
+}
+.chat-input::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-border);
 }
 .chat-input::placeholder {
   color: var(--text-muted);

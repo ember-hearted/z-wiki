@@ -482,6 +482,21 @@
     var(--shadow-lg);
   max-height: 16rem;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.settings-select-list::-webkit-scrollbar {
+  width: 5px;
+}
+.settings-select-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.settings-select-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--r-pill);
+}
+.settings-select-list::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-border);
 }
 
 .settings-select-option {

@@ -171,7 +171,22 @@
   z-index: 50;
   max-height: 22rem;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
   padding: var(--sp-1);
+}
+.search-dropdown::-webkit-scrollbar {
+  width: 5px;
+}
+.search-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+.search-dropdown::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--r-pill);
+}
+.search-dropdown::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-border);
 }
 
 .search-item {
