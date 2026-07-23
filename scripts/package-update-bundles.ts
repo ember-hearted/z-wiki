@@ -8,13 +8,13 @@ import { execSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Versions } from './lib/release-versions.ts'
+import type { Versions } from './lib/release-versions.js'
 import {
   computeVersions,
   readDesktopPkg,
   readLockHash,
   readToolVersions,
-} from './lib/release-versions.ts'
+} from './lib/release-versions.js'
 
 /** latest.json 单个包条目(结构对应 desktop/src/updater.ts 的 PackageInfo)。 */
 export interface LatestPackage {
