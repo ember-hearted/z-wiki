@@ -10,8 +10,8 @@
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import type { Versions } from './lib/release-versions.ts'
-import { computeCurrentVersions } from './lib/release-versions.ts'
+import type { Versions } from './lib/release-versions.js'
+import { computeCurrentVersions } from './lib/release-versions.js'
 
 type ReleaseTier = 'code' | 'app' | 'full'
 

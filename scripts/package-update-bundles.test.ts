@@ -7,12 +7,12 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { computeVersions } from './lib/release-versions.js'
 import {
   buildManifest,
   collectAppBundleEntries,
   collectCodePatchEntries,
   collectFullPackages,
-  computeVersions,
 } from './package-update-bundles.js'
 
 test('computeVersions: depsVersion = lockHash 前 12 位, baselineVersion 拼接', () => {

@@ -48,7 +48,10 @@ const TOOLS: ToolSpec[] = [
           ? `ripgrep-${RG_VERSION}-aarch64-unknown-linux-gnu.tar.gz`
           : `ripgrep-${RG_VERSION}-x86_64-unknown-linux-musl.tar.gz`
       }
-      if (plat === 'win32') return `ripgrep-${RG_VERSION}-${a}-pc-windows-msvc.zip`
+      if (plat === 'win32') {
+        // ripgrep 不发 aarch64-pc-windows-msvc;arm64 走 x86_64 仿真(与 pandoc 一致)
+        return `ripgrep-${RG_VERSION}-x86_64-pc-windows-msvc.zip`
+      }
       return null
     },
     binaryInArchive: (plat) => (plat === 'win32' ? 'rg.exe' : 'rg'),
@@ -62,7 +65,10 @@ const TOOLS: ToolSpec[] = [
       const a = arch === 'arm64' ? 'aarch64' : 'x86_64'
       if (plat === 'darwin') return `fd-v${FD_VERSION}-${a}-apple-darwin.tar.gz`
       if (plat === 'linux') return `fd-v${FD_VERSION}-${a}-unknown-linux-gnu.tar.gz`
-      if (plat === 'win32') return `fd-v${FD_VERSION}-${a}-pc-windows-msvc.zip`
+      if (plat === 'win32') {
+        // fd 不发 aarch64-pc-windows-msvc;arm64 走 x86_64 仿真(与 pandoc 一致)
+        return `fd-v${FD_VERSION}-x86_64-pc-windows-msvc.zip`
+      }
       return null
     },
     binaryInArchive: (plat) => (plat === 'win32' ? 'fd.exe' : 'fd'),
