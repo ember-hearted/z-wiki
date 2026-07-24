@@ -31,7 +31,16 @@ jobs:
       - id: detect
         run: |
           TIER=$(npx tsx scripts/detect-release-tier.ts --tier-only 2>/dev/null || echo "full")
-          V=$(node -p "require('./package.json').version")
+          # tag 触发时以 tag 名为准(避免 package.json 版本滞后导致建错 release)
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            V="${GITHUB_REF_NAME#v}"
+            PKG_V=$(node -p "require('./package.json').version")
+            if [ "$V" != "$PKG_V" ]; then
+              echo "::warning::tag v$V 与 package.json 版本 $PKG_V 不一致,以 tag 为准"
+            fi
+          else
+            V=$(node -p "require('./package.json').version")
+          fi
           echo "tier=$TIER" >> $GITHUB_OUTPUT
           echo "version=$V" >> $GITHUB_OUTPUT
           echo "Detected tier: $TIER for v$V"
@@ -51,6 +60,7 @@ jobs:
       - run: npm run build
       - run: npm run build -w @z-wiki/desktop
       - run: node desktop/scripts/render-icon.mjs
+      - run: npm run fetch-tool-bins
       - run: cd desktop && npx electron-builder --mac --win
         env:
           GH_TOKEN: ${{ github.token }}
@@ -74,6 +84,7 @@ jobs:
       - run: npm run build
       - run: npm run build -w @z-wiki/desktop
       - run: node desktop/scripts/render-icon.mjs
+      - run: npm run fetch-tool-bins
       - run: cd desktop && npx electron-builder --linux
         env:
           GH_TOKEN: ${{ github.token }}
@@ -98,6 +109,7 @@ jobs:
       - run: npm run build
       - run: npm run build -w @z-wiki/desktop
       - run: node desktop/scripts/render-icon.mjs
+      - run: npm run fetch-tool-bins
       - run: cd desktop && npx electron-builder --linux
         env:
           GH_TOKEN: ${{ github.token }}
@@ -115,7 +127,8 @@ jobs:
   # 汇总发版
   release:
     needs: [detect, build-full-mac, build-full-linux, build-incremental]
-    if: always()
+    # 构建 job 失败/取消时不得发版(skipped 是正常的——分层检测只跑部分 job)
+    if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -125,7 +138,6 @@ jobs:
           echo "tier=${{ needs.detect.outputs.tier }}"
           echo "version=${{ needs.detect.outputs.version }}"
       - uses: actions/download-artifact@v4
-        continue-on-error: true
         with:
           pattern: '*'
           path: release-artifacts
@@ -140,4 +152,4 @@ jobs:
           generate_release_notes: true
           files: |
             release-artifacts/**/*
-          fail_on_unmatched_files: false
+          fail_on_unmatched_files: true
