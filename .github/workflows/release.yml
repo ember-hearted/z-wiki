@@ -156,14 +156,14 @@ jobs:
           name: v${{ needs.detect.outputs.version }}${{ inputs.summary && format(' - {0}', inputs.summary) || '' }}
           body: ${{ inputs.summary && format('{0}', inputs.summary) || '' }}
           generate_release_notes: true
-          # 只上传打包成品;unpacked 目录(含 node_modules)太大,全量 glob 会 EMFILE
+          # 只上传打包成品(产物目录顶层);unpacked 目录里的 rg.exe/z-wiki.exe 等不能传
           files: |
-            release-artifacts/**/*.dmg
-            release-artifacts/**/*.blockmap
-            release-artifacts/**/*.exe
-            release-artifacts/**/*.zip
-            release-artifacts/**/*.AppImage
-            release-artifacts/**/*.tar.gz
-            release-artifacts/**/latest*.yml
-            release-artifacts/**/latest.json
+            release-artifacts/*/*.dmg
+            release-artifacts/*/*.blockmap
+            release-artifacts/*/*.exe
+            release-artifacts/*/*.zip
+            release-artifacts/*/*.AppImage
+            release-artifacts/*/*.tar.gz
+            release-artifacts/*/latest*.yml
+            release-artifacts/*/latest.json
           fail_on_unmatched_files: false
