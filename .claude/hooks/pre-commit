@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 防重入：Claude Code 跑一次 + git 又跑一次 = 二次触发
-# 环境变量只存活于本次 git commit 生命周期，无需轮询清理
-if [ -n "${Z_WIKI_PRE_COMMIT_RUNNING:-}" ]; then
-  exit 0
-fi
-export Z_WIKI_PRE_COMMIT_RUNNING=1
-
 # z-wiki pre-commit hook
 # 对 staged 的 TS/JS 文件做 format + lint
 # 通不过则阻止提交，让开发者在 CI 之前先发现问题。
