@@ -3,6 +3,7 @@
   "version": "0.4.2",
   "private": true,
   "type": "module",
+  "repository": "ember-hearted/z-wiki",
   "main": "dist/main.js",
   "description": "让知识长出来,变废为宝 -- 基于 LLM agent 的个人知识库编译器",
   "author": "Earendil Works",
