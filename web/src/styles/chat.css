@@ -885,6 +885,8 @@
   width: 100%;
   flex: 1;
   resize: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
   /* 按钮已移至 composer 底部状态行,textarea 无需右侧避让,左右等距内壁 */
   padding: var(--sp-1) var(--sp-2);
   border: none;
@@ -1234,6 +1236,20 @@ body.chat-resizing {
   border-radius: var(--r-pill);
 }
 .chat-thinking-text::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-border);
+}
+
+.chat-input::-webkit-scrollbar {
+  width: 5px;
+}
+.chat-input::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-input::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--r-pill);
+}
+.chat-input::-webkit-scrollbar-thumb:hover {
   background: var(--accent-border);
 }
 
