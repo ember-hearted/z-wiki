@@ -1,11 +1,11 @@
-import { lazy, Suspense, useState, type ReactNode } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { lazy, type ReactNode, Suspense, useState } from 'react'
+import { Route, Routes } from 'react-router'
+import ChatDrawer from './components/ChatDrawer'
+import FloatingActions from './components/FloatingActions'
+import Header from './components/Header'
 import { usePages } from './hooks/useData'
 import { ThemeProvider } from './hooks/useTheme'
 import { useWikiLinkNav } from './hooks/useWikiLinkNav'
-import Header from './components/Header'
-import FloatingActions from './components/FloatingActions'
-import ChatDrawer from './components/ChatDrawer'
 
 // 路由级懒加载：把 three/gsap(BookShelf3D)与 highlight.js(Article)拆出首屏 chunk
 const Home = lazy(() => import('./components/Home'))
