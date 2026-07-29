@@ -34,6 +34,7 @@ layer1 集中在 `kb/` 下,内部按内容性质分四条 sub-seam。每条有�
 ## 关键工作流
 
 - **Ingest** —— 上传源到 `raw/`(经界面上传,md/非 md 均原样落,不预转)→ agent 按 §1 编译规则处理(md/纯文本原样读,pandoc 格式经 pandoc 工具转文本)→ 更新 Compiled + Metadata → 触发 build
+- **编译小结** —— ingest 收尾时 agent 产出的一两句话(本次动作:新建/合并/更新/未编译 + 涉及文件 + 理由),作为完成通知展示给 layer2;其中 wiki/output 文章以 `[[wikilink]]` 引用,可点跳转。仅领域语言,实现见 ADR-0024。
 - **Query** —— 用户提问 → agent 读 Metadata 定位 → 读 Compiled/Source 合成回答 → 判断回写 → 更新 Metadata
 - **Build** —— agent 回合结束后,server 调 `buildView` 纯函数扫 Compiled(除导航页 `00-知识库导航`)+ Reports → 内存缓存 → 经 HTTP 暴露给 layer2
 

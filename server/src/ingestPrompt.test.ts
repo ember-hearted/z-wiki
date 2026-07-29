@@ -1,8 +1,9 @@
 // ingestPrompt.test.ts - ingest 触发 prompt 构造单测。
 // 从 interaction.ts 的 runIngest 闭包外提为 buildIngestPrompt(rawName) 纯函数后的行为锁定:
-// md/非 md 的 readHint 分支、rawName 插值、§1 引用、6 步结构。
-import { test } from 'node:test'
+// md/非 md 的 readHint 分支、rawName 插值、§1 引用、7 步结构(含编译小结契约,ADR-0024)。
+
 import assert from 'node:assert/strict'
+import { test } from 'node:test'
 import { buildIngestPrompt } from './ingestPrompt.js'
 
 // ── md 文件:走 read,不指示 pandoc ────────────────────────────────
@@ -54,7 +55,7 @@ test('buildIngestPrompt: .markdown 后缀 -> 按 非 md 处理(只认精确 .md)
   assert.ok(p.includes('pandoc'))
 })
 
-// ── 共同结构:插值 / §1 引用 / 6 步 / 来源引用 ───────────────────
+// ── 共同结构:插值 / §1 引用 / 7 步 / 来源引用 ───────────────────
 
 test('buildIngestPrompt: rawName 插值到 header + 来源引用 [[raw/X]]', () => {
   const p = buildIngestPrompt('study/01-note.md')
@@ -67,10 +68,20 @@ test('buildIngestPrompt: 引用 §1 编译规则', () => {
   assert.ok(p.includes('§1 编译规则'))
 })
 
-test('buildIngestPrompt: 含 6 步结构(1. .. 6.)', () => {
+test('buildIngestPrompt: 含 7 步结构(1. .. 7.)', () => {
   const p = buildIngestPrompt('x.md')
-  for (const n of ['1.', '2.', '3.', '4.', '5.', '6.']) {
+  for (const n of ['1.', '2.', '3.', '4.', '5.', '6.', '7.']) {
     assert.ok(p.includes(n), `应含步骤 ${n}`)
   }
   assert.ok(p.includes('6. 若判断不值得编译,简短说明并结束'))
+})
+
+// ── 编译小结契约(ADR-0024):动作+文件+理由,wikilink 引用,≤80 字 ──
+
+test('buildIngestPrompt: 第 7 步编译小结契约(要素+wikilink+长度)', () => {
+  const p = buildIngestPrompt('x.md')
+  assert.ok(p.includes('编译小结'), '应含术语「编译小结」')
+  assert.ok(p.includes('≤80 字'), '应含长度约束')
+  assert.ok(p.includes('[[NN-主题]]'), '应指示 wikilink 引用 wiki/output 文章')
+  assert.ok(p.includes('新建/合并/更新/未编译'), '应列动作要素')
 })

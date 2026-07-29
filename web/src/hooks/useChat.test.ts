@@ -1,15 +1,59 @@
 // 回归测试:applyServerMsg 提取为纯函数后,现有 text_delta/tool_start/tool_end/done/error 行为零变化。
 // 注入 mock ctx(nextId 固定)+ current(streamingId/prevTokens),断言返回的更新。
-import { test } from 'node:test'
+
 import assert from 'node:assert/strict'
+import { test } from 'node:test'
 import {
   applyServerMsg,
+  type ChatMessage,
+  ingestDoneMessage,
   toggleThinkingSegment,
   vaultChangedReset,
-  type ChatMessage,
 } from './useChat.js'
 
 const ctx = { nextId: () => 's1' }
+
+// ── ingestDoneMessage(ADR-0024):有编译小结用小结,无则回退静态模板 ──
+
+test('ingestDoneMessage: 有 summary -> 用小结 + markdown 渲染标记', () => {
+  const m = ingestDoneMessage(
+    { summary: '已合并到 [[09-AG-UI-架构]],事件体系扩为完整规范', raw: 'ag-ui.md' },
+    'm1',
+  )
+  assert.deepEqual(m, {
+    id: 'm1',
+    role: 'system',
+    text: '已合并到 [[09-AG-UI-架构]],事件体系扩为完整规范',
+    markdown: true,
+  })
+})
+
+test('ingestDoneMessage: summary 为空白 -> 回退上传模板', () => {
+  const m = ingestDoneMessage({ summary: '  ', raw: 'ag-ui.md' }, 'm1')
+  assert.deepEqual(m, {
+    id: 'm1',
+    role: 'system',
+    text: '已处理上传文件 ag-ui.md,知识库已更新',
+  })
+})
+
+test('ingestDoneMessage: 无 summary 有 source(a2a)-> 回退来源模板', () => {
+  const m = ingestDoneMessage({ source: 'claude-code', raw: 'x.md' }, 'm1')
+  assert.deepEqual(m, {
+    id: 'm1',
+    role: 'system',
+    text: '来自 claude-code 的内容已编译,知识库已更新',
+  })
+})
+
+test('ingestDoneMessage: 无 summary 无 source(老 server)-> 回退上传模板', () => {
+  const m = ingestDoneMessage({ raw: 'ag-ui.md' }, 'm1')
+  assert.deepEqual(m, {
+    id: 'm1',
+    role: 'system',
+    text: '已处理上传文件 ag-ui.md,知识库已更新',
+  })
+})
 
 test('text_delta 续写末段 text', () => {
   const update = applyServerMsg({ type: 'text_delta', text: 'hi' }, ctx, {

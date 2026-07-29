@@ -3,7 +3,8 @@
 //
 // 这是 Interaction 调起 agent 做 ingest 的"命令模板"(per-file user-turn 指令,经 session.prompt 发),
 // 不是 layer1 契约 -- 真正的 layer1 编译契约是 §1 编译规则(定义在 KB_SYSTEM_PROMPT,经 resourceLoader
-// 注入 system prompt,ingest/query 都用)。此处仅按 rawName 后缀选读法 + 给 6 步流程指引引用 §1。
+// 注入 system prompt,ingest/query 都用)。此处仅按 rawName 后缀选读法 + 给 7 步流程指引引用 §1。
+// 第 7 步是编译小结硬契约(ADR-0024):agent 收尾文本经 ingest_done 广播给 layer2 展示。
 import path from 'node:path'
 import { PLAINTEXT_EXTS } from './uploadExts.js'
 
@@ -27,5 +28,6 @@ export function buildIngestPrompt(rawName: string): string {
     `4. 若内容达到产出 output 的条件(如可形成对比分析/报告),可产出 output`,
     `5. 追加 log.md`,
     `6. 若判断不值得编译,简短说明并结束`,
+    `7. 最后必须输出编译小结(一两句话,≤80 字):本次动作(新建/合并/更新/未编译)+ 涉及文件 + 一句话理由。wiki/output 文章用 [[NN-主题]] 引用(不带路径与 .md 后缀),raw 文件用纯文本路径。小结会作为系统通知直接展示给用户,之后的对话不再重复`,
   ].join('\n')
 }

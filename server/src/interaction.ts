@@ -25,20 +25,21 @@ import { API_SPECS } from './apiSpecs.js'
 import { buildView, type PageMeta } from './buildView.js'
 import {
   DEFAULT_CONTEXT_WINDOW,
-  THINKING_LEVELS,
   maskApiKey,
   readConfig,
+  THINKING_LEVELS,
   type ThinkingLevel,
   type VaultEntry,
   writeConfig,
 } from './config.js'
-import { reloadLlmConfig, ConfigReloadError } from './configReload.js'
+import { ConfigReloadError, reloadLlmConfig } from './configReload.js'
 import { hasIndexChanged } from './hasIndexChanged.js'
-import { buildIngestPrompt } from './ingestPrompt.js'
-import { rawDir } from './kbLayout.js'
-import { relayEvent, type RelayCtx } from './relayEvent.js'
-import { checkUploadExt } from './uploadExts.js'
 import { classifyMilestone } from './ingestProgress.js'
+import { buildIngestPrompt } from './ingestPrompt.js'
+import { collectClosingText } from './ingestSummary.js'
+import { rawDir } from './kbLayout.js'
+import { type RelayCtx, relayEvent } from './relayEvent.js'
+import { checkUploadExt } from './uploadExts.js'
 import { slugify, vaultDisplayName } from './vaultLayout.js'
 
 export interface Interaction {
@@ -218,6 +219,8 @@ export async function createInteraction(
     log.info('ingest started')
 
     let ingestPercent = 0
+    // 编译小结收集(ADR-0024):agent 收尾文本随 ingest_done 广播,前端优先展示小结
+    const closing = collectClosingText()
     const session = await createIngestSession({
       ctx: agentCtx,
       kbRoot: currentKbRoot,
@@ -228,6 +231,7 @@ export async function createInteraction(
           ingestPercent = milestone
           broadcast({ type: 'ingest_progress', percent: milestone })
         }
+        closing.onEvent(event)
       },
     })
     ingestSessions.add(session)
@@ -240,7 +244,7 @@ export async function createInteraction(
 
       // 通知对话客户端:先触发 build 再广播 ingest_done,与 POST /api/ingest 路径一致
       await triggerBuild(null)
-      broadcast({ type: 'ingest_done', raw: rawName })
+      broadcast({ type: 'ingest_done', raw: rawName, summary: closing.text() })
     } finally {
       activeIngestCount = Math.max(0, activeIngestCount - 1)
       ingestSessions.delete(session)
@@ -378,24 +382,12 @@ export async function createInteraction(
     })
     log.info({ rawPath: rawName }, 'ingest api: saved to raw/')
 
-    // 起 ingest agent,收集 text_delta 拼出响应
-    let responseText = ''
+    // 起 ingest agent,收集收尾文本(编译小结,ADR-0024):广播给 layer2 + 作 response 返回调用方
+    const closing = collectClosingText()
     const session = await createIngestSession({
       ctx: agentCtx,
       kbRoot: currentKbRoot,
-      onEvent: (event) => {
-        const e = event as {
-          type: string
-          assistantMessageEvent?: { type: string; delta?: string }
-        }
-        if (
-          e.type === 'message_update' &&
-          e.assistantMessageEvent?.type === 'text_delta' &&
-          e.assistantMessageEvent.delta
-        ) {
-          responseText += e.assistantMessageEvent.delta
-        }
-      },
+      onEvent: closing.onEvent,
     })
 
     try {
@@ -411,9 +403,10 @@ export async function createInteraction(
       type: 'ingest_done',
       raw: rawName,
       source: source ?? null,
+      summary: closing.text(),
     })
 
-    return { raw: rawName, response: responseText || '编译完成' }
+    return { raw: rawName, response: closing.text() || '编译完成' }
   })
 
   // ── Vault 管理 + 配置端点(ADR-0003 D4/D5/D7/D3.1)─────────────────

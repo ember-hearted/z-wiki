@@ -1,6 +1,5 @@
-import { ACCEPTED_UPLOAD_EXTS } from '@z-wiki/server/uploadExts'
 import { mdToHtml, splitBlocks } from '@z-wiki/server/markdown'
-import remend from 'remend'
+import { ACCEPTED_UPLOAD_EXTS } from '@z-wiki/server/uploadExts'
 import {
   type ChangeEvent,
   type KeyboardEvent,
@@ -10,6 +9,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import remend from 'remend'
 import {
   type ChatMessage,
   type IngestPhase,
@@ -17,12 +17,12 @@ import {
   type TurnStats,
   useChat,
 } from '../hooks/useChat'
-import { shouldScrollToBottom } from './chatScroll'
-import A2AModal from './A2AModal'
-import QuickAction from './QuickAction'
-import { ChatNav } from './chatNav'
-import { CopyButton, getLastTextSegment } from './chatCopy'
 import { useFileDrop } from '../hooks/useFileDrop'
+import A2AModal from './A2AModal'
+import { CopyButton, getLastTextSegment } from './chatCopy'
+import { ChatNav } from './chatNav'
+import { shouldScrollToBottom } from './chatScroll'
+import QuickAction from './QuickAction'
 
 /** skill 命令 -> 友好显示文本。user message 渲染时映射(按钮触发与手打统一显示)。
  *  send 只发原始命令,显示文本是 ChatPanel 的 UI 关注点,不漏进 useChat/send。 */
@@ -254,7 +254,17 @@ const MessageBubble = memo(function MessageBubble({
         data-role={msg.role}
       >
         <span className="chat-mark">{msg.error ? '⚠' : '◆'}</span>
-        <span className="chat-system-text">{msg.text}</span>
+        {msg.markdown ? (
+          // 编译小结(ADR-0024):mdToHtml 渲染,[[wikilink]] -> a.wl 可点(useWikiLinkNav 全局委托);
+          // mdToHtml 产出受信 html(已 escapeHtml 转义),与 assistant 文本块同源
+          <div
+            className="chat-system-text"
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: mdToHtml 产出已 escapeHtml,XSS 安全
+            dangerouslySetInnerHTML={{ __html: mdToHtml(msg.text ?? '') }}
+          />
+        ) : (
+          <span className="chat-system-text">{msg.text}</span>
+        )}
       </div>
     )
   }
