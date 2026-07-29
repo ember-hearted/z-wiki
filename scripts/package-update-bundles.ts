@@ -3,9 +3,10 @@
 // 代码包内容(4 处):app/dist + app/node_modules/@z-wiki/server + web/dist + app/package.json。
 // 三版本号:appVersion(desktop/package.json)+ depsVersion(package-lock sha256 前 12 位)+
 // baselineVersion(Electron + pandoc/rg/fd 版本组合)。
-import { createHash } from 'node:crypto'
+
 import { execSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Versions } from './lib/release-versions.js'
@@ -111,35 +112,41 @@ function sha512(filePath: string): string {
   return createHash('sha512').update(readFileSync(filePath)).digest('hex')
 }
 
+/** unpacked 候选目录:mac 为 mac-arm64/mac(不带 -unpacked),win/linux 为 *-unpacked。 */
+const UNPACKED_CANDIDATES = [
+  { dir: 'mac-arm64', resources: path.join('z-wiki.app', 'Contents', 'Resources') },
+  { dir: 'mac', resources: path.join('z-wiki.app', 'Contents', 'Resources') },
+  { dir: 'win-unpacked', resources: 'resources' },
+  { dir: 'win-arm64-unpacked', resources: 'resources' },
+  { dir: 'linux-unpacked', resources: 'resources' },
+  { dir: 'linux-arm64-unpacked', resources: 'resources' },
+]
+
+/**
+ * 按 mtime 选最新 unpacked 的 resources 目录(= 本次 electron-builder 的输出)。
+ * 不按当前平台选:AUTO 增量打包只打 linux,当前平台的 unpacked 可能是上次全量的
+ * 旧残留(v0.5.0 发版时 mac-arm64 旧件被抽进 code/app 包,发出 0.4.2 内容标 0.5.0)。
+ */
+export function pickLatestUnpacked(releaseDir: string): string {
+  let best: { resourcesDir: string; mtimeMs: number } | null = null
+  for (const c of UNPACKED_CANDIDATES) {
+    const resourcesDir = path.join(releaseDir, c.dir, c.resources)
+    if (!existsSync(path.join(resourcesDir, 'app'))) continue
+    const mtimeMs = statSync(resourcesDir).mtimeMs
+    if (!best || mtimeMs > best.mtimeMs) best = { resourcesDir, mtimeMs }
+  }
+  if (!best) throw new Error(`未找到任何 unpacked 产物(${releaseDir}):先跑 electron-builder`)
+  return best.resourcesDir
+}
+
 /** main:从 unpacked 抽代码包 + 生成 latest.json。make package 末尾调。 */
 function main(): void {
   const repoRoot = path.resolve(import.meta.dirname, '..')
   const releaseDir = path.join(repoRoot, 'release')
   if (!existsSync(releaseDir)) throw new Error('release/ 不存在:先跑 electron-builder')
 
-  // electron-builder unpacked 目录命名不统一:mac 为 mac/mac-arm64(不带 -unpacked),
-  // win/linux 为 win-unpacked/linux-unpacked。按当前平台选(避免抽到 release/ 里旧平台 unpacked)。
-  const unpackedName =
-    process.platform === 'darwin'
-      ? process.arch === 'arm64'
-        ? 'mac-arm64'
-        : 'mac'
-      : process.platform === 'win32'
-        ? process.arch === 'arm64'
-          ? 'win-arm64-unpacked'
-          : 'win-unpacked'
-        : process.arch === 'arm64'
-          ? 'linux-arm64-unpacked'
-          : 'linux-unpacked'
-  const unpackedDir = path.join(releaseDir, unpackedName)
-  // mac unpacked 的 resources 在 .app/Contents/Resources/;win/linux 在 unpacked/resources/
-  const resourcesDir =
-    process.platform === 'darwin'
-      ? path.join(unpackedDir, 'z-wiki.app', 'Contents', 'Resources')
-      : path.join(unpackedDir, 'resources')
-  if (!existsSync(path.join(resourcesDir, 'app'))) {
-    throw new Error(`未找到 ${resourcesDir}/app:先跑 electron-builder`)
-  }
+  const resourcesDir = pickLatestUnpacked(releaseDir)
+  console.log(`unpacked 源: ${path.relative(repoRoot, resourcesDir)}`)
 
   const desktop = readDesktopPkg(repoRoot)
   const tools = readToolVersions(repoRoot)
