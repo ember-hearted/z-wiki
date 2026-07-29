@@ -34,6 +34,7 @@ import {
 } from './config.js'
 import { ConfigReloadError, reloadLlmConfig } from './configReload.js'
 import { hasIndexChanged } from './hasIndexChanged.js'
+import { appendIngestLogIfUntouched, snapshotLogMtime } from './ingestLogFallback.js'
 import { classifyMilestone } from './ingestProgress.js'
 import { buildIngestPrompt } from './ingestPrompt.js'
 import { collectClosingText } from './ingestSummary.js'
@@ -237,11 +238,14 @@ export async function createInteraction(
     ingestSessions.add(session)
 
     const prompt = buildIngestPrompt(rawName)
+    // log.md 兜底快照(ADR-0025):agent 回合结束后未更新 log.md 则 server 补记
+    const logMtime = await snapshotLogMtime(currentKbRoot)
 
     try {
       await session.prompt(prompt)
       log.info('ingest finished')
 
+      await appendIngestLogIfUntouched(currentKbRoot, logMtime, rawName, closing.text())
       // 通知对话客户端:先触发 build 再广播 ingest_done,与 POST /api/ingest 路径一致
       await triggerBuild(null)
       broadcast({ type: 'ingest_done', raw: rawName, summary: closing.text() })
@@ -390,6 +394,8 @@ export async function createInteraction(
       onEvent: closing.onEvent,
     })
 
+    // log.md 兜底快照(ADR-0025):agent 回合结束后未更新 log.md 则 server 补记
+    const logMtime = await snapshotLogMtime(currentKbRoot)
     try {
       await session.prompt(buildIngestPrompt(rawName))
       log.info('ingest api: agent finished')
@@ -397,6 +403,7 @@ export async function createInteraction(
       session.dispose()
     }
 
+    await appendIngestLogIfUntouched(currentKbRoot, logMtime, rawName, closing.text())
     await triggerBuild(null)
 
     broadcast({

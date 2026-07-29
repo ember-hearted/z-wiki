@@ -7,7 +7,7 @@ z-wiki 的领域语言。架构评审用这些词指代概念,不要漂移成 "s
 
 z-wiki 分三层。每层有独立的契约,层间经窄 interface 通信,不互写文件系统。物理上 layer1 收拢在 `kb/` 目录。
 
-- **layer1 知识层(data)** —— 知识库本身的内容,集中在 `kb/`。agent 全权维护,server 只读(除上传归档)。agent 的 cwd = `kb/`,物理上看不到 server/web。
+- **layer1 知识层(data)** —— 知识库本身的内容,集中在 `kb/`。agent 全权维护,server 只读(除上传归档与 ingest 日志兜底补记)。agent 的 cwd = `kb/`,物理上看不到 server/web。
 - **layer2 可视层(web)** —— 前端 SPA,运行时经 HTTP fetch layer3 暴露的可视数据。
 - **layer3 交互层(server)** —— Fastify + pi agent。用户与 LLM 交互的唯一渠道;编排 ingest/agent_end→build 闭环。
 
@@ -19,7 +19,7 @@ layer1 集中在 `kb/` 下,内部按内容性质分四条 sub-seam。每条有�
 |---|---|---|
 | **Source** | `raw/` | 只读源。原始来源原样归档(不预转),agent 读取但永不修改;唯一写入方是上传端点。读法三分:md 与纯文本(.txt/.text/.log)原样 read,pandoc 格式(docx 等)经 pandoc 工具转文本。代码层由 tool_call 拦截强制(ADR-0002/0011/0016) |
 | **Compiled** | `wiki/` | agent 维护的结构化知识。文章进入可视层(导航页 `00-知识库导航` 除外,ADR-0010) |
-| **Metadata** | `index.md`, `log.md` | 索引(`index.md`)与操作时间线(`log.md`)。每次有产出的 ingest/query 后追加 |
+| **Metadata** | `index.md`, `log.md` | 索引(`index.md`)与操作时间线(`log.md`)。每次有产出的 ingest/query 后追加;ingest 漏记时 server 兜底补记(ADR-0025) |
 | **Reports** | `output/` | agent 生成的报告与分析 |
 | **(工具产物)** | `health-check/` | healthCheck 脚本生成的健康检查报告。与 output/ 同级,不进可视层,不归 agent 维护 |
 
