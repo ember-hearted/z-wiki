@@ -6,16 +6,16 @@ import './applyPendingBoot.js' // 副作用:win 待应用更新在 server import
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
-import type { MenuItemConstructorOptions } from 'electron'
 import { createServer } from '@z-wiki/server'
+import type { MenuItemConstructorOptions } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
+import { buildContextMenuTemplate } from './contextMenu.js'
+import { ensureFirstRun } from './firstRun.js'
+import { shouldAutoHideMenuBar } from './menuBar.js'
 import { resolveDesktopPaths } from './paths.js'
 import { needsWindowsGpuSandboxFallback } from './pathUtils.js'
-import { ensureFirstRun } from './firstRun.js'
 import { ensureToolBins } from './toolBins.js'
 import { checkForUpdate, cleanupOldPatches } from './updater.js'
-import { buildContextMenuTemplate } from './contextMenu.js'
-import { shouldAutoHideMenuBar } from './menuBar.js'
 import { loadWindowBounds, saveWindowBounds } from './windowState.js'
 
 // 应用名:覆盖 Electron 默认"Electron"(macOS 应用菜单/Dock 显示名)。打包后由 Info.plist 接管。
@@ -42,6 +42,12 @@ const DEFAULT_WINDOW_WIDTH = 1280
 const DEFAULT_WINDOW_HEIGHT = 800
 const MIN_WINDOW_WIDTH = 1080
 const MIN_WINDOW_HEIGHT = 675
+
+// 默认更新 feed:GitHub 最新 release 的 latest.json(latest.json 内的相对包名基于它解析成绝对
+// URL,`releases/latest/download/<asset>` 恒指向最新 release 的同名资产)。ZWIKI_UPDATE_FEED
+// 可覆盖(自托管/测试)。仓库全名硬编码:z-wiki 只有这一个发布源。
+const DEFAULT_UPDATE_FEED =
+  'https://github.com/ember-hearted/z-wiki/releases/latest/download/latest.json'
 
 let interaction: Awaited<ReturnType<typeof createServer>> | null = null
 let mainWindow: BrowserWindow | null = null
@@ -156,11 +162,12 @@ async function bootstrap(): Promise<void> {
     return { action: 'deny' }
   })
 
-  // 后台检查更新(仅 prod + 配了 ZWIKI_UPDATE_FEED;不阻塞 bootstrap,ADR-0018 Ticket 04/06)。
+  // 后台检查更新(仅 prod;不阻塞 bootstrap,ADR-0018 Ticket 04/06)。
+  // feed 默认 DEFAULT_UPDATE_FEED(GitHub release),ZWIKI_UPDATE_FEED 可覆盖。
   // code/app 档自动下载应用 -> 提示重启;full 档 mac/win 提示下完整包重装(linux 自动替换 AppImage)。
-  if (app.isPackaged && process.env.ZWIKI_UPDATE_FEED) {
+  if (app.isPackaged) {
     void checkForUpdate({
-      feedUrl: process.env.ZWIKI_UPDATE_FEED,
+      feedUrl: process.env.ZWIKI_UPDATE_FEED ?? DEFAULT_UPDATE_FEED,
       statePath: path.join(paths.userDataDir, '.update-state.json'),
       cacheDir: path.join(paths.userDataDir, 'update-cache'),
       stagingDir: path.join(paths.userDataDir, 'update-staging'),
