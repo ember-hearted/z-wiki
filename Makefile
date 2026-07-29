@@ -1,4 +1,4 @@
-.PHONY: help install run run-w build typecheck lint format format-check clean clean-release package
+.PHONY: help install run run-w build typecheck lint format format-check clean clean-release package release
 
 WORKTREE ?= $(CURDIR)
 
@@ -49,6 +49,8 @@ clean: ## 清理构建产物与依赖
 clean-release: ## 清理 release/:删其他平台完整包,保留当前 arch + app/code 包 + unpacked 缓存(ADR-0018 D7)
 	npx tsx scripts/clean-release.ts
 
+# AUTO=1 自动检测分层:code=仅代码包,app=app+代码包,full=三平台完整包。
+# 注意:recipe 续行段内不要写 # 注释——make 折叠续行后 # 会吞掉同行后续命令(实测静默 exit 0)。
 release: ## 发布新版本:AUTO=1 自动分层打包,否则全平台打包 + tag + GitHub release + 上传产物
 	$(eval V := $(shell node -p "require('./package.json').version"))
 	$(eval TAG := v$(V))
@@ -67,7 +69,6 @@ release: ## 发布新版本:AUTO=1 自动分层打包,否则全平台打包 + ta
 	if git rev-parse "$(TAG)" >/dev/null 2>&1; then echo "tag $(TAG) 已存在"; exit 1; fi; \
 	echo "→ 发布 $(TAG) - $$SUMMARY"; \
 	\
-	# 分层检测(AUTO=1):code=仅代码包,app=app+代码包,full=三平台完整包 \
 	TIER=""; \
 	if [ "$(AUTO)" = "1" ]; then \
 	  TIER=$$(npx tsx scripts/detect-release-tier.ts --tier-only); \
