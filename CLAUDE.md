@@ -29,6 +29,7 @@ z-wiki 是三层架构 + 已落地的架构决策。**改任何架构前,先读 
 - `docs/adr/0021-thinking-toggle-reasoning-always-on.md` -- 思考控制两档化(quickbar toggle,开=medium)+ `model.reasoning` 恒 true 乐观声明(删 `config.reasoning` 与 available 暴露);supersedes ADR-0004 D8 的 reasoning 部分、ADR-0012 D4/D5。
 - `docs/adr/0022-draft-clean-paper-ink-blue-repalette.md` -- Draft 主题改「净纸白 + 明快墨蓝」清爽现代化,书架两主题同色相族;supersedes ADR-0013 D1''/D3''、ADR-0020 D2 色值。
 - `docs/adr/0024-ingest-closing-summary.md` -- ingest 完成通知展示 agent 收尾文本(编译小结):`ingest_done` 广播带 `summary`(两路径统一),`buildIngestPrompt` 第 7 步契约,系统消息 wikilink 可点。
+- `docs/adr/0025-ingest-log-fallback.md` -- ingest 日志 server 兜底:log.md mtime 快照比对,agent 漏记时 server 追加补记条目(复用编译小结,标注 server 补记);layer1 写入方扩列为上传归档(raw/)+ 日志兜底(log.md)。
 
 三层物理边界不动:`kb/`(layer1 数据)/ `web/`(layer2 SPA)/ `server/`(layer3 Fastify+pi agent)各自独立,不互写文件系统。桌面化是在三层之外加 `desktop/` shell,不穿透。
 
