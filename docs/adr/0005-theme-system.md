@@ -1,6 +1,6 @@
 # ADR-0005: 主题系统 —— Archive/Draft 双主题,书架恒深色展台
 
-- 状态:accepted
+- 状态:partially superseded(D1 共享靛青 accent、D3 书架恒深展台由 ADR-0006 取代,D2/D4/D5 accepted)
 - 日期:2026-07-06
 - 范围:layer2(web)引入明暗双主题,涉及 CSS token 拆分、主题切换控件、首屏防闪、书架区作用域
 - 关联:CONTEXT.md「主题」节、ADR-0003(layer2 SPA 不破坏三层)

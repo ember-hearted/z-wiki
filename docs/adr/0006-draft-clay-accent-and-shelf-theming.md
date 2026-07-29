@@ -1,6 +1,6 @@
 # ADR-0006: Draft 主题独立陶土橙 accent + 书架随主题浅化
 
-- 状态:accepted
+- 状态:partially superseded(D1' 陶土橙 accent、D3' 牛皮纸书皮由 ADR-0013 取代,D2' 换皮机制及其余决策 accepted)
 - 日期:2026-07-07
 - 范围:layer2(web)Draft 主题 accent 改陶土橙(不再与 Archive 同源);3D 书架展台与书皮在 Draft 下随主题浅化。**supersedes ADR-0005 的 D1(共享靛青 accent)与 D3(书架恒深色展台)**;0005 的 D2(token 拆分)/D4(localStorage + FOUC)/D5(硬编码收口)继续 accepted。
 - 关联:ADR-0005(被取代 D1/D3)、CONTEXT.md「主题」节、ADR-0003(layer2 SPA 不破坏三层)

@@ -7,29 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 z-wiki 是三层架构 + 已落地的架构决策。**改任何架构前,先读 `CONTEXT.md`(领域词汇)与 `docs/adr/`(决策记录),不要重新 litigate 已定决策。**
 
 - `CONTEXT.md` —— 领域词汇表(layer1/2/3、sub-seam、桌面形态术语)。输出里用词不要漂移成 service/component/api。
-- `docs/adr/0001-server-seams.md` —— server 内部 seam:AgentHost(pi SDK 封装)+ Interaction(编排+HTTP+WS),buildView 走 HTTP 不写盘。
-- `docs/adr/0002-layer1-contract.md` —— layer1 契约:`kb/` 收拢、`raw/` 只读走代码(kbHooks 拦 write/edit)、sub-seam 命名集中在 `kbLayout.ts`。
-- `docs/adr/0003-desktop-form.md` —— 桌面化决策(Electron + 不破坏三层)。
-- `docs/adr/0004-llm-config.md` —— LLM 配置:干掉 provider 预设,`baseUrl`/`api`/`model`/`apiKey` 可配。(D8 的 reasoning 字段 + available 暴露已被 ADR-0021 取代)
-- `docs/adr/0005-theme-system.md` —— 主题系统(明暗 + 陶土浅色)。
-- `docs/adr/0006-draft-clay-accent-and-shelf-theming.md` —— Draft 主题换皮机制(D1'陶土橙/D3'牛皮纸已被 ADR-0013 取代,留 D2'换皮)。
-- `docs/adr/0007-non-md-bash-pandoc.md` —— 非 md 原样落 raw/,agent 侧按需转;决策 2(bash 白名单)已被 ADR-0011 取代,决策 3(pandoc 二进制内置)仍有效。
-- `docs/adr/0008-platform-branches-keep-inline.md` —— 平台分支就地判断,不抽平台分发表/统一 adapter。
-- `docs/adr/0009-quick-action-skill-customtool.md` —— 快捷按钮 = `send('/skill:<name>')` 触发 pi skill,skill 正文指导 agent 调配套 customTool(健康检查为首例,`health_check` 工具)。
-- `docs/adr/0010-remove-wiki-view-filter.md` —— 移除 wiki view 过滤,书本全显(导航页 `00-知识库导航` hardcode 排除)。
-- `docs/adr/0011-pandoc-customtool-remove-bash.md` —— pandoc 走 customTool(`makePandocTool`,spawn argv 不经 shell),bash 工具 + `bashWhitelist` 移除;supersedes ADR-0007 决策 2。
-- `docs/adr/0012-thinking-mode-and-zh-constraint.md` —— 思考模式 quickbar 切换 + 中文约束(段A 输出语言静态注入 / 段B 思考语言动态注入);config 加 `thinkingLevel`。(D4 动态 available / D5 下拉菜单已被 ADR-0021 取代)
-- `docs/adr/0013-draft-archivist-room-repalette.md` —— Draft 主题改「档案室」配色(泛黄纸 + 蓝黑墨水);supersedes ADR-0006 D1'/D3'。
-- `docs/adr/0014-css-regional-split.md` —— web CSS 按区域拆分(删 `global.css` 3682 行 -> 7 文件),纯 locality 重组。
-- `docs/adr/0015-book-shelf-phantom-slot.md` -- N=1,2 补虚拟位凑奇数 slots(N≥3 不变),保留 slot0 体系 + currentSlot 量化真书槽集;删单本路径。
-- `docs/adr/0016-tool-path-sandbox-kb.md` -- agent 文件工具路径沙箱(锁 kb/ 内):read/grep/find/ls/pandoc 读边界 `isWithinKb`(含 raw/),write/edit 写边界 `isWritablePath`(非 raw/);内置走 kbHooks,pandoc 走 execute;不处理 symlink。
-- `docs/adr/0017-isolate-pi-skill-loading.md` -- 限制 pi skill 加载到 z-wiki 自有(DefaultResourceLoader `noSkills: true` + `additionalSkillPaths: [health-check]`),隔离 `~/.claude/skills/` 的 Claude Code 开发技能。
-- `docs/adr/0018-self-hosted-incremental-update.md` -- 自建三档增量更新分发(不走 electron-updater):完整包/应用包/代码包 + baselineVersion/depsVersion/appVersion 三档比对;覆盖式更新绕过 Squirrel 签名约束(mac 不签名也能自动更新);resolves ADR-0003 未决"自动更新策略"。
-- `docs/adr/0020-colored-book-covers.md` -- 书架彩色书皮(书皮按 accent 派生:Archive 深彩混黑 62% / Draft 粉彩混白 58%)+ Archive 色板鲜明化;supersedes ADR-0013 D3'' 的固定书皮色。
-- `docs/adr/0021-thinking-toggle-reasoning-always-on.md` -- 思考控制两档化(quickbar toggle,开=medium)+ `model.reasoning` 恒 true 乐观声明(删 `config.reasoning` 与 available 暴露);supersedes ADR-0004 D8 的 reasoning 部分、ADR-0012 D4/D5。
-- `docs/adr/0022-draft-clean-paper-ink-blue-repalette.md` -- Draft 主题改「净纸白 + 明快墨蓝」清爽现代化,书架两主题同色相族;supersedes ADR-0013 D1''/D3''、ADR-0020 D2 色值。
-- `docs/adr/0024-ingest-closing-summary.md` -- ingest 完成通知展示 agent 收尾文本(编译小结):`ingest_done` 广播带 `summary`(两路径统一),`buildIngestPrompt` 第 7 步契约,系统消息 wikilink 可点。
-- `docs/adr/0025-ingest-log-fallback.md` -- ingest 日志 server 兜底:log.md mtime 快照比对,agent 漏记时 server 追加补记条目(复用编译小结,标注 server 补记);layer1 写入方扩列为上传归档(raw/)+ 日志兜底(log.md)。
+- `docs/adr/` —— 全部架构决策(编号序,文件名带主题 slug)。每篇头部有状态与 supersede 链;改架构前先扫目录定位相关篇目再读。新决策新建一篇(取最大编号+1),在自己的头部声明 supersede 关系,不在本节加索引行。
 
 三层物理边界不动:`kb/`(layer1 数据)/ `web/`(layer2 SPA)/ `server/`(layer3 Fastify+pi agent)各自独立,不互写文件系统。桌面化是在三层之外加 `desktop/` shell,不穿透。
 

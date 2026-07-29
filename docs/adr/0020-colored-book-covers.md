@@ -1,6 +1,6 @@
 # ADR-0020: 书架彩色书皮(书皮按 accent 派生)+ Archive 色板鲜明化
 
-- 状态:partially superseded(D1 满铺混色由 ADR-0023 取代;D2 色板、D3 细节自适应保留)
+- 状态:partially superseded(D1 满铺混色由 ADR-0023 取代、D2 Archive 具体色值由 ADR-0022 更新;D2 色板机制、D3 细节自适应保留)
 - 日期:2026-07-17
 - 范围:layer2(web)首页 3D 书架的书本配色;supersedes ADR-0013 D3'' 的「固定书皮色」部分(Draft 泛黄纸书皮 `#e8e0cc`、Archive 深色书皮 `#12121a`),案卷色板、展台分层原则保留
 - 关联:ADR-0013(被部分 supersede)、ADR-0006 D2'(换皮机制,不动)、ADR-0005 D3(展台恒深,不动)、CONTEXT.md「主题」节
