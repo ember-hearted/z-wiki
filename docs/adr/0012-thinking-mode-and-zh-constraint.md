@@ -1,6 +1,6 @@
 # ADR-0012: 思考模式快捷切换 + 中文约束(段A 静态 / 段B 动态注入)
 
-- 状态:accepted
+- 状态:partially superseded(D4 按 model 动态 available、D5 quickbar 下拉菜单由 ADR-0021 取代,D1/D2 中文约束及其余决策 accepted)
 - 日期:2026-07-13
 - 范围:layer2(chat quickbar 思考按钮)+ layer3(agentHost thinkingPrompt extension + config.thinkingLevel + interaction 路由)
 - 关联:ADR-0004 D8(thinkingLevel 字段)、ADR-0001(server seam)、ADR-0009(quickbar 模式)

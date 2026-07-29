@@ -1,6 +1,6 @@
 # ADR-0004: LLM 配置 —— 干掉 provider 预设,baseUrl/api/model 用户可配 + 运行时热重载不丢上下文
 
-- 状态:accepted
+- 状态:partially superseded(D8 的「config.reasoning 字段 + available 档位暴露」由 ADR-0021 取代,D8 thinkingLevel 持久化及其余决策 accepted)
 - 日期:2026-07-03
 - 范围:z-wiki 的 LLM 配置从"首版固定 ark"演进到"用户可配任意 OpenAI/Anthropic 兼容端点",涉及 config.json schema、api 规范 manifest、baseUrl 规范化、配置生效机制
 - 关联:ADR-0003 D3.1(config.json 单一真相源)、ADR-0001(server seam)

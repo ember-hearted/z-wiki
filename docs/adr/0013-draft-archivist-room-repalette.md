@@ -1,6 +1,6 @@
 # ADR-0013: Draft 主题改「档案室」配色(泛黄纸 + 蓝黑墨水)
 
-- 状态:accepted
+- 状态:partially superseded(D1''/D3'' 由 ADR-0022 取代、D3'' 固定书皮色由 ADR-0020 取代,D4''/D5''/D6'' accepted)
 - 日期:2026-07-13
 - 范围:layer2(web)Draft 主题配色方向从陶土橙暖纸改档案室(泛黄纸 + 蓝黑墨水);supersedes ADR-0006 的 D1'(陶土橙 accent)与 D3'(牛皮纸书皮 + 陶土色板);保留 0006 的 D2'(换皮机制)、0005 的 D2/D4/D5。
 - 关联:ADR-0006(被取代 D1'/D3')、ADR-0005(D2/D4/D5 继续)、CONTEXT.md「主题」节、ADR-0003(layer2 SPA 不破坏三层)

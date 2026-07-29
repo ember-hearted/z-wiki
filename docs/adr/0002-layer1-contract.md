@@ -1,6 +1,6 @@
 # ADR-0002: layer1 契约下沉 —— raw/ 只读走代码、sub-seam 命名集中、kb/ 收拢
 
-- 状态:accepted
+- 状态:partially superseded(决策 3「非 md 端点前置转换」的端点前置部分由 ADR-0007 取代,其余决策 accepted)
 - 日期:2026-07-01
 - 范围:layer1(知识层)的目录契约、命名与物理位置,及 server 对这些契约的引用方式
 - 关联:ADR-0001(server seam)、CONTEXT.md(领域词汇)
