@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import type { PageMeta } from '../hooks/useData'
 import { useTheme } from '../hooks/useTheme'
 import BottomDrawer from './BottomDrawer'

@@ -1,14 +1,16 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
-import { useParams, Link } from 'react-router-dom'
 import hljs from 'highlight.js/lib/core'
-import typescript from 'highlight.js/lib/languages/typescript'
 import bash from 'highlight.js/lib/languages/bash'
 import python from 'highlight.js/lib/languages/python'
+import typescript from 'highlight.js/lib/languages/typescript'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useParams } from 'react-router'
+
 hljs.registerLanguage('typescript', typescript)
 hljs.registerLanguage('bash', bash)
 hljs.registerLanguage('python', python)
-import { usePageContent } from '../hooks/useData'
+
 import type { PageMeta, TocItem } from '../hooks/useData'
+import { usePageContent } from '../hooks/useData'
 
 interface ArticleProps {
   pages: PageMeta[]
