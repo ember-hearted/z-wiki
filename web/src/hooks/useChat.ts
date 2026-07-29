@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
-import { emitIngestState, emitKbUpdated } from './chatEvents'
 import { nextAnchor } from '@z-wiki/server/ingestProgress'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { emitIngestState, emitKbUpdated } from './chatEvents'
 
 /** 助手回合内的时间线片段:文本段、工具调用段、思考段按到达顺序排列,保留时序。 */
 export type Segment =
@@ -32,6 +32,9 @@ export interface ChatMessage {
   text?: string
   segments?: Segment[]
   error?: boolean
+  // system 消息走 mdToHtml 渲染(编译小结的 [[wikilink]] -> 可点链接,ADR-0024);
+  // 仅 ingest 小结置 true,错误/纯通知保持纯文本
+  markdown?: boolean
 }
 
 /** 当前模型信息(WS session_init 推送,header 右上展示)。 */
@@ -102,6 +105,8 @@ interface ServerMsg {
   raw?: string
   percent?: number
   source?: string
+  // ingest_done 携带的编译小结(agent 收尾文本,ADR-0024);老 server 无此字段
+  summary?: string
   enabled?: boolean
   a2aEnabled?: boolean
   vault?: { path: string; name: string }
@@ -366,6 +371,23 @@ export function toggleThinkingSegment(
   )
 }
 
+/** ingest_done 系统消息(纯函数,可测):有编译小结用小结(markdown 渲染,[[wikilink]] 可点,
+ *  ADR-0024);无(老 server 无 summary 字段 / agent 未产出文本)回退静态模板。 */
+export function ingestDoneMessage(
+  msg: Pick<ServerMsg, 'summary' | 'source' | 'raw'>,
+  id: string,
+): ChatMessage {
+  const summary = msg.summary?.trim()
+  if (summary) return { id, role: 'system', text: summary, markdown: true }
+  return {
+    id,
+    role: 'system',
+    text: msg.source
+      ? `来自 ${msg.source} 的内容已编译,知识库已更新`
+      : `已处理上传文件 ${msg.raw},知识库已更新`,
+  }
+}
+
 /** vault_changed 重置的目标状态(纯函数,可测)。
  *  切库时旧库上下文全部作废:消息清空、流式态/累计基准/上下文占用/ingest 角标重置,
  *  并标记切库重连(短延迟)。返回固定初值;hook 应用完本状态后再 emitKbUpdated,
@@ -486,16 +508,7 @@ export function useChat() {
           emitIngestState({ active: false })
           // 保持当前 percent,done 阶段 useEffect 平滑插值到 100(避免从 15/50 突跳 100)
           setIngest((prev) => (prev ? { ...prev, phase: 'done' } : prev))
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: nextId(),
-              role: 'system',
-              text: msg.source
-                ? `来自 ${msg.source} 的内容已编译,知识库已更新`
-                : `已处理上传文件 ${msg.raw},知识库已更新`,
-            },
-          ])
+          setMessages((prev) => [...prev, ingestDoneMessage(msg, nextId())])
           break
         case 'ingest_error':
           emitIngestState({ active: false })

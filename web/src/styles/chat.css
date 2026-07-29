@@ -424,6 +424,10 @@
   color: var(--text-muted);
   line-height: var(--lh-snug);
 }
+/* 编译小结走 mdToHtml 渲染(ADR-0024):段落 <p> 在系统行内不留段落间距,保持单行通知观感 */
+.chat-system-text p {
+  margin: 0;
+}
 .chat-row-error .chat-system-text {
   color: #d98a7a;
 }
