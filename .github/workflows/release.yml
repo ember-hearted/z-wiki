@@ -61,7 +61,8 @@ jobs:
       - run: npm run build -w @z-wiki/desktop
       - run: node desktop/scripts/render-icon.mjs
       - run: npm run fetch-tool-bins
-      - run: cd desktop && npx electron-builder --mac --win
+      # --publish never:打包归打包,发版归 release job;否则 tag 触发隐式 publish,build job 无写权限 403
+      - run: cd desktop && npx electron-builder --mac --win --publish never
         env:
           GH_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@v4
@@ -85,7 +86,8 @@ jobs:
       - run: npm run build -w @z-wiki/desktop
       - run: node desktop/scripts/render-icon.mjs
       - run: npm run fetch-tool-bins
-      - run: cd desktop && npx electron-builder --linux
+      # --publish never:同上,禁 electron-builder tag 隐式 publish
+      - run: cd desktop && npx electron-builder --linux --publish never
         env:
           GH_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@v4
@@ -110,7 +112,8 @@ jobs:
       - run: npm run build -w @z-wiki/desktop
       - run: node desktop/scripts/render-icon.mjs
       - run: npm run fetch-tool-bins
-      - run: cd desktop && npx electron-builder --linux
+      # --publish never:同上,禁 electron-builder tag 隐式 publish
+      - run: cd desktop && npx electron-builder --linux --publish never
         env:
           GH_TOKEN: ${{ github.token }}
       # 抽代码包 + app 包 + latest.json
