@@ -38,6 +38,14 @@ layer1 集中在 `kb/` 下,内部按内容性质分四条 sub-seam。每条有�
 - **Query** —— 用户提问 → agent 读 Metadata 定位 → 读 Compiled/Source 合成回答 → 判断回写 → 更新 Metadata
 - **Build** —— agent 回合结束后,server 调 `buildView` 纯函数扫 Compiled(除导航页 `00-知识库导航`)+ Reports → 内存缓存 → 经 HTTP 暴露给 layer2
 
+## 收件(外部 agent 投递)
+
+外部 agent(Claude Code/Codex 等)向 z-wiki 投递内容的功能与术语。
+
+- **收件** —— z-wiki 接收外部 agent 投递的 Markdown、经 Ingest 编译入库的功能。_Avoid_: A2A(历史命名,仅代码标识符 a2a* 保留)、对话
+- **发信** —— 收件流程中对方 agent 执行的动作:把内容投递给 z-wiki,并把返回的编译小结转告用户。
+- **收件提示词** —— Modal 中供用户复制、粘贴给对方 agent 的文本。形态是给 agent 的指令(提示词),不是给人读的 API 文档;末尾留内容粘贴位,与用户随后粘贴的内容拼成连贯指令。
+
 ## 桌面形态
 
 z-wiki 桌面化引入的概念。仅领域语言,实现细节见 ADR-0003。

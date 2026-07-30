@@ -18,11 +18,11 @@ import {
   useChat,
 } from '../hooks/useChat'
 import { useFileDrop } from '../hooks/useFileDrop'
-import A2AModal from './A2AModal'
 import { CopyButton, getLastTextSegment } from './chatCopy'
 import { ChatNav } from './chatNav'
 import { shouldScrollToBottom } from './chatScroll'
 import QuickAction from './QuickAction'
+import ReceiveAction from './ReceiveAction'
 
 /** skill 命令 -> 友好显示文本。user message 渲染时映射(按钮触发与手打统一显示)。
  *  send 只发原始命令,显示文本是 ChatPanel 的 UI 关注点,不漏进 useChat/send。 */
@@ -395,7 +395,6 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
     setA2A,
   } = useChat()
   const [input, setInput] = useState('')
-  const [a2aModalOpen, setA2AModalOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const userCount = useMemo(() => messages.filter((m) => m.role === 'user').length, [messages])
@@ -521,21 +520,7 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
       </div>
       <ChatNav scrollRef={scrollRef} userCount={userCount} streaming={streaming} />
       <div className="chat-quickbar">
-        <QuickAction label="收件" onClick={() => setA2AModalOpen(true)} active={a2aEnabled}>
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-            <path d="M3 7l9 6 9-6" />
-          </svg>
-        </QuickAction>
+        <ReceiveAction a2aEnabled={a2aEnabled} onToggle={(enabled) => void setA2A(enabled)} />
         <ThinkingButton
           level={thinkingLevel}
           disabled={!connected || streaming}
@@ -562,12 +547,6 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
           </svg>
         </QuickAction>
       </div>
-      <A2AModal
-        open={a2aModalOpen}
-        onClose={() => setA2AModalOpen(false)}
-        a2aEnabled={a2aEnabled}
-        onToggle={(enabled) => void setA2A(enabled)}
-      />
       <div
         className="chat-input-row"
         ref={composerRef}
