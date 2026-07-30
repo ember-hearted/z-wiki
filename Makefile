@@ -89,7 +89,7 @@ release: ## 发布新版本:AUTO=1 自动分层打包,否则全平台打包 + ta
 	echo ""; echo "=== 发布到 GitHub ==="; \
 	ASSETS="release/z-wiki-code-$(V).tar.gz release/z-wiki-app-$(V).tar.gz release/latest.json"; \
 	if [ "$${TIER:-full}" = "full" ]; then \
-	  ASSETS="$$ASSETS release/z-wiki-*-$(V)-mac-arm64.dmg release/z-wiki-*-$(V)-mac-x64.dmg release/z-wiki-*-$(V)-win-x64.exe release/z-wiki-*-$(V)-win-x64.zip release/z-wiki-*-$(V)-linux-x64.AppImage"; \
+	  ASSETS="$$ASSETS release/z-wiki-$(V)-mac-arm64.dmg release/z-wiki-$(V)-mac-x64.dmg release/z-wiki-$(V)-win-x64.exe release/z-wiki-$(V)-win-x64.zip release/z-wiki-$(V)-linux-x64.AppImage"; \
 	fi; \
 	gh release create "$(TAG)" --title "$(TAG) - $$SUMMARY" --generate-notes $$ASSETS; \
 	echo ""; echo "✓ $(TAG) 发布完成"
