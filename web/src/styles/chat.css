@@ -1064,6 +1064,13 @@ body.chat-resizing {
   .chat-quick-on::before {
     opacity: 0;
   }
+  /* 收件胶囊同特异性问题,见 .receive-capsule.chat-quick-on 注释 */
+  .receive-capsule.chat-quick-on {
+    border-color: var(--accent-bright);
+  }
+  .receive-capsule.chat-quick-on::before {
+    opacity: 0;
+  }
 }
 
 /* ── quickbar 分组分隔符 ──────────────────────────────── */
@@ -1109,6 +1116,16 @@ body.chat-resizing {
   z-index: -1;
 }
 
+/* 开态:复合选择器提特异性——基础规则在文件中位置靠后,单靠 .chat-quick-on 会被盖掉。 */
+.receive-capsule.chat-quick-on {
+  border-color: transparent;
+  color: var(--accent-bright);
+}
+
+.receive-capsule.chat-quick-on::before {
+  opacity: 1;
+}
+
 .receive-toggle {
   display: inline-flex;
   align-items: center;
@@ -1124,10 +1141,11 @@ body.chat-resizing {
   height: 0;
 }
 
+/* 开关尺寸对齐 fs-xs 文本:26x15 轨 + 11px 钮,过大与「收件」文字不搭。 */
 .receive-toggle-track {
   position: relative;
-  width: 32px;
-  height: 18px;
+  width: 26px;
+  height: 15px;
   border-radius: var(--r-pill);
   background: var(--border);
   transition: background 0.2s;
@@ -1139,8 +1157,8 @@ body.chat-resizing {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 14px;
-  height: 14px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   background: var(--text-muted);
   transition:
@@ -1153,15 +1171,15 @@ body.chat-resizing {
 }
 
 .receive-toggle-input:checked + .receive-toggle-track::after {
-  transform: translateX(14px);
+  transform: translateX(11px);
   background: var(--surface);
 }
 
-/* 胶囊内小竖线:比 quickbar 分组符(.chat-quick-sep)安静,无呼吸。 */
+/* 胶囊内小竖线:比 quickbar 分组符(.chat-quick-sep)安静(无呼吸),但用 accent-border 保证可见。 */
 .receive-sep {
   width: 1px;
   align-self: stretch;
-  background: var(--border);
+  background: var(--accent-border);
   margin: 2px 0;
   flex-shrink: 0;
 }
