@@ -20,8 +20,8 @@ make typecheck    # 全量类型检查(server + web + scripts + desktop 四个 t
 npm test          # 跑 server + desktop + web 的 *.test.ts(tsx --test)
 make lint         # Biome lint(不修改)
 make format       # Biome 格式化(写入)
-make package      # 打包 desktop(electron-builder,默认当前平台;TARGETS="--mac --win --linux" 三平台交叉打包)
-make release      # 单命令发版:三平台打包 + tag + GitHub release + 上传(make release SUMMARY="...")
+make package      # 打包 desktop(electron-builder,默认当前平台;TARGETS="--mac --win --linux" 三平台交叉打包;手动兜底用)
+make release      # 单命令发版:触发远程 release 工作流(自动分层打包 + tag + GitHub release + 上传),用法 make release SUMMARY="..."
 make clean-release # 清理 release/成品包,只留打包缓存(加速下次打包)
 make build        # 构建前端 + 后端产物
 ```
