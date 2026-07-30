@@ -1,110 +1,199 @@
 # Changelog
 
-## [0.4.1] - 2026-07
+> 版本号遵循 SemVer。各版本按发布时间升序排列。
 
-### Added
-- `wiki/` → `output/` 晋升去重，相同内容不再重复晋升
-- `promoted-to` 健康检查
+---
 
-### Changed
-- `make release` 单命令完成打包 + tag + 发布全流程
-- `clean-release` 只留打包缓存，所有成品包全删
+## v0.5.1 (2026-07-30)
 
-### Documentation
-- CLAUDE.md 补发版流程说明 + ADR-0022
-- CLAUDE.md 更新发版步骤指引
+### ✨ 新功能
 
-## [0.4.0] - 2026-07
+- **收件交互重做** —— Modal 改为胶囊（开关 + 复制按钮），说明文档改为收件提示词形态，保留内容粘贴位（ADR-0026）
+- **更新 feed 内置默认** —— 打包 app 自动从 GitHub releases/latest 检查更新，无需手动设 env
 
-### Added
-- A2A 收件功能：Agent 间内容投递
-- Quickbar 按钮分组
-- 3D 书架书皮改程序化封面画（中性载体 + 构图原型）
+### 🐛 修复
 
-### Fixed
-- `orbitAlignTarget` 加 `virtual` 参数，防止 virtual 书架进轨道球时 clamp 跳书
-- npm overrides 修复 protobufjs/brace-expansion 嵌套漏洞
-- 适配 pi-coding-agent v0.80.10 breaking API 变更（AuthStorage → ModelRuntime）
-- 修复安全漏洞：npm 传递依赖补丁 + CodeQL 误报注释
+- **打包 dmg glob** —— release 全量档 glob 多一段 `*-` 导致匹配不到产物
+- **增量包旧残留** —— `package-update-bundles` 按 mtime 选最新 unpacked，修增量包抽取旧版残留
+- **Makefile release 双修** —— 补 .PHONY、recipe 内注释移出避免静默 exit 0
 
-### Changed
-- 用户名 ASmallMatch → ember-hearted
+### ⚠️ 提醒
 
-## [0.3.2] - 2026-05
+v0.5.0 及之前的安装版 updater 因缺少内置 feed 地址从未运行，请手动下载完整包安装。
 
-### Added
-- `POST /api/ingest` 端点：Claude Code 直接发送内容触发编译
-- SECURITY.md 安全策略
-- PR 模板（配合 label 分类 release notes）
-- `release.yml` 自动生成发版说明模板
+---
 
-### Changed
-- PR 模板和 CLAUDE.md worktree 开发工作流更新
+## v0.5.0 (2026-07-29)
 
-## [0.3.1] - 2026-05
+### ✨ 新功能
 
-### Fixed
-- 书架中心抽出本书 hover 显示 pointer 光标
-- 轨道球惯标
-- 移除设置页 number input 右侧步进箭头
+- **编译小结** —— ingest 完成通知展示 agent 收尾文本（新建/合并/更新 + 涉及文件 + 理由）
+- **INGEST 日志兜底** —— agent 漏记 log.md 时 server 补记
 
-## [0.3.0] - 2026-05
+### 🐛 修复
 
-### Added
-- Draft 主题改「净纸白 + 明快墨蓝」清爽现代化（ADR-0022）
-- 书架两主题同色相族
-- 展厅视觉语言对齐（分级柔化 + kicker + 按钮/卡片 finish）
-- 思考控制两档化（toggle）+ reasoning 恒 true 乐观声明（ADR-0021）
+- **依赖漏洞** —— protobufjs/brace-expansion 嵌套漏洞修复
+- **依赖升级** —— @fastify/static 10.1.2 + react-router 8.3.0
+- **find-my-way CVE** —— 9.6.0 → 9.7.0
+- **CI/发布加固** —— 产物校验前置 + glob 收紧 + repository 字段补全 + fetch-tool-bins 找回 + pre-commit hook 修复
+- **chat-input 滚动条** —— 对齐全站细条样式
 
-### Fixed
-- Linux 视口滚动条全端隐藏
-- Developer 角色 400 错误 + DeepSeek 思考 off 失效
-- Linux 菜单栏默认隐藏
-- CodeQL 首扫 9 条告警（XSS 属性注入/URL 校验/ReDoS/CI 权限）
-- Linux AppImage 命名 x86_64 → x64
+### 📖 文档
 
-### Changed
-- 依赖升级：electron 38.8.6 → 39.8.5
-- 依赖升级：@fastify/static 8.3.0 → 10.1.0
+- CLAUDE.md ADR 逐行索引收缩为目录指引，supersede 链回归 ADR 自承载
 
-### Refactored
-- 删除迁移遗留的 Stop 死钩子
+---
 
-## [0.2.0] - 2026-04
+## v0.4.2 (2026-07-22)
 
-### Added
-- 自建三档增量更新分发（ADR-0018）：代码包 / 应用包 / 完整包
-- `incremental-update` 全套实现（打包→分发→安装→降级）
-- 书架彩色书皮（ADR-0020）：书皮按 accent 派生，Archive 色板鲜明化
-- `ingest` 角标改进：消化系文本 + 里程碑进度（ADR-0019）
-- 支持 .txt/.text/.log 纯文本上传
-- agent 文件工具路径沙箱锁 `kb/` 内（ADR-0016）
-- 限制 pi skill 加载到 z-wiki 自有（ADR-0017）
-- CI: Node.js CI（typecheck + lint + test，Node 22 单版本）
-- MIT LICENSE + README 开源协议节
+### 🐛 修复
 
-### Fixed
-- `isWithinKb` 误拦 `kb/` 根
-- `ensureFirstRun` 自愈 `kb/` 缺失
-- `clean-release` 版本过滤
-- 三处 pre-existing lint
+- **代码块滚动条** —— 横向滚动条改为细条样式
+- **CI 权限** —— 补 CI/release.yml workflow permissions（CodeQL）
+- **typecheck/fetch-tool-bins** —— 修复 scripts typecheck 与 win32-arm64 下载失败
 
-### Documentation
-- GitHub Pages 项目介绍落地页（docs/index.html）
-- README 重新设计与补充
-- ADR-0018 三档增量更新
-- CONTEXT 术语簇 + PRD
+### 🔧 杂项
 
-## [0.1.0] - 2026-03
+- **自动发版分层检测** —— `make release AUTO=1` 按变更范围自动选更新档（code/app/full）
+- **开源准备** —— CONTRIBUTING/CODE_OF_CONDUCT/CI/Issue 模板基础文件
 
-### Added
-- 初始版本。3D 书架首页、文章阅读、agent 对话、多 Vault 管理
-- Electron 桌面应用（macOS/Windows/Linux）
-- 有限虚拟位 + slot 0 体系
-- 搜索结果页（cmd focus + launch darkly 探索）
-- 纯 HTTP buildView（不写盘）
-- 平台分支就地判断（ADR-0008）
-- thinking 模式可用
+---
 
-### Fixed
-- z-wiki.bat 纯英文（修 GBK cmd 中文乱码）
+## v0.4.1 (2026-07-21)
+
+### 🔧 杂项
+
+- **make release 单命令** —— 一体化打包 + tag + GitHub release + 上传
+- **clean-release 策略** —— 只留打包缓存，所有成品包全删
+- **文档** —— CLAUDE.md 补 make release/clean-release + ADR-0022 + 更新发版流程
+
+---
+
+## v0.4.0 (2026-07-21)
+
+### ✨ 新功能
+
+- **A2A 收件** —— Agent 间内容投递 + quickbar 按钮分组
+- **程序化封面画** —— 书皮改中性载体 + 封面画构图原型（几何色块/色带/大字号等）
+
+### 🐛 修复
+
+- **轨道球 virtual 书架** —— orbitAlignTarget 加 virtual 参数，防止 virtual 书架进轨道球时 clamp 跳书
+- **依赖漏洞** —— protobufjs/brace-expansion 嵌套漏洞修复
+- **pi-coding-agent 适配** —— v0.80.10 breaking API 变更（AuthStorage → ModelRuntime）
+- **安全补丁** —— npm 传递依赖 + CodeQL 误报注释
+
+### 🎨 样式
+
+- **书架书皮** —— 程序化封面画（中性载体 + 构图原型）
+
+### 📖 文档
+
+- **README 重设计** —— 门面风排版 + 折叠运维细节
+- **用户名迁移** —— ASmallMatch → ember-hearted（LICENSE/README/SECURITY）
+
+---
+
+## v0.3.2 (2026-07-20)
+
+### ✨ 新功能
+
+- **POST /api/ingest 端点** —— Claude Code 直发内容触发编译
+- **SECURITY.md** —— 安全策略文档
+- **PR 模板 + release.yml** —— 配合 label 分类 release notes
+
+---
+
+## v0.3.1 (2026-07-20)
+
+### 🐛 修复
+
+- **书架中心本 hover** —— 显示 pointer 光标
+- **轨道球 bug** —— 全态修复
+- **Number input** —— 设置页移除右侧步进箭头（上下文窗口手输大数）
+
+---
+
+## v0.3.0 (2026-07-18)
+
+### ✨ 新功能
+
+- **Draft 浅色主题** —— 净纸白 + 明快墨蓝清爽现代化（ADR-0022）
+- **展厅视觉语言** —— 分级柔化 + kicker + 按钮/卡片 finish 统一
+- **思考控制两档化** —— toggle 开关 + reasoning 恒 true（ADR-0021）
+- **electron 升级 38→39**
+- **@fastify/static 升级** —— 8.3.0 → 10.1.0
+
+### 🐛 修复
+
+- **linux 滚动条** —— 全端隐藏（经典条常驻占位 + 切主题闪白）
+- **custom provider 兼容** —— developer 角色 400 + DeepSeek 思考 off 失效
+- **linux 菜单栏** —— autoHideMenuBar 补 linux 默认隐藏
+- **CodeQL 告警** —— XSS 属性注入/URL 校验/ReDoS/CI 权限
+- **增量更新** —— linux AppImage 命名 x86_64 → x64
+
+### 🔧 杂项
+
+- **gitignore .scratch/** —— 工作流临时 issue/PRD 笔记不提交
+- **清理** —— 删除迁移遗留的 Stop 死钩子
+
+---
+
+## v0.2.0 (2026-07-17)
+
+### ✨ 新功能
+
+- **增量更新机制** —— 自建三档覆盖式更新（代码包/应用包/完整包），含 ADR-0018 决策 + 8 切片实现
+- **书架彩色书皮** —— 书皮按 accent 派生（6 色色相族）+ Archive 色板鲜明化
+- **纯文本上传** —— 支持 .txt/.text/.log 三分读法
+- **ingest 角标改进** —— 消化系文本 + 里程碑进度（ADR-0019）
+- **clean-release 版本过滤** —— 发新版后旧版本包自动全删
+- **CI** —— Node.js CI（typecheck + lint + test，Node 22）
+- **agent 路径沙箱** —— 文件工具锁 kb/ 内（ADR-0016）
+- **限 pi skill 加载** —— 只加载 z-wiki 自有（ADR-0017）
+
+### 🐛 修复
+
+- **ingest 里程碑** —— 取 read 的 path 字段 + done 平滑收尾
+- **isWithinKb 误拦** —— kb/ 根（ls . / grep . 被误报越界）
+- **ensureFirstRun 自愈** —— kb/ 缺失时补复制
+- **三处 pre-existing lint**
+
+### 📖 文档
+
+- **GitHub Pages 落地页** —— 项目介绍（docs/index.html）
+- **README** —— 改项目主张与描述，补 mac 未签名首次打开说明
+- **ADR-0018** —— 自建三档增量更新 + CONTEXT 术语簇 + PRD
+
+---
+
+## v0.1.0 (2026-07-16)
+
+首个可分发版本。
+
+### ✨ 新功能
+
+- **三层架构落地** —— kb/(layer1) / web/(layer2 SPA) / server/(layer3 Fastify+pi agent)
+- **ADR-0001~0017** —— 17 篇架构决策记录
+- **Electron 桌面** —— electron-builder 三平台打包（mac/win/linux）
+- **3D 书架** —— Three.js 圆柱书架、拖拽滑轨、slot 系统、轨道球交互（ADR-0015）
+- **LLM 对话** —— Fastify + pi-coding-agent，思考过程展开/折叠
+- **Ingest 上传** —— md 与 pandoc 格式（pdf/docx）上传编译
+- **主题系统** —— Archive(暗) / Archive Invert(亮) 双主题
+- **设置页** —— Vault 切换，provider/model/context window 配置
+- **Windows 兼容** —— NSIS + zip 便携，旧 Win 自动 GPU/沙箱降级
+- **README + CONTEXT.md + CLAUDE.md** 开发指引
+
+---
+
+## 格式
+
+```
+## vX.Y.Z (YYYY-MM-DD)
+
+### ✨ 新功能
+### 🐛 修复
+### 🎨 样式
+### 📖 文档
+### 🔧 杂项
+```
