@@ -1,4 +1,4 @@
-.PHONY: help install run run-w build typecheck lint format format-check clean clean-release package release
+.PHONY: help install run run-w run-web build typecheck lint format format-check clean clean-release package release
 
 WORKTREE ?= $(CURDIR)
 
@@ -18,6 +18,9 @@ run-w: ## 复用主仓库依赖,启动 worktree 的 desktop(在 worktree 或主�
 		ln -sfn "$$MAIN_ROOT/node_modules" "$(abspath $(WORKTREE))/node_modules"; \
 	fi
 	cd "$(WORKTREE)" && npm run desktop
+
+run-web: ## 构建并启动 webui(浏览器形态,无 Electron)
+	npm run web
 
 build: ## 构建前端 + 后端产物
 	npm run build

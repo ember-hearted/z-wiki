@@ -11,6 +11,7 @@
   ],
   "scripts": {
     "build": "npm run build -w web && npm run build -w server",
+    "web": "npm run build && node server/dist/index.js",
     "desktop": "node desktop/scripts/patch-electron-name.mjs && npm run build && npm run build -w @z-wiki/desktop && electron desktop",
     "bump": "node scripts/bump-version.mjs",
     "postinstall": "node scripts/postinstall.mjs",
