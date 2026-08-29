@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## 架构契约(必读)
 
@@ -16,7 +16,6 @@ z-wiki 是三层架构 + 已落地的架构决策。**改任何架构前,先读 
 ```bash
 make run          # 构建并启动主工作区的 desktop(Electron)
 make run-w        # 复用主工作区依赖,启动 worktree 的 desktop
-make run-web      # 构建并启动 webui(浏览器形态,无 Electron;同 npm run web)
 make typecheck    # 全量类型检查(server + web + scripts + desktop 四个 tsconfig)
 npm test          # 跑 server + desktop + web 的 *.test.ts(tsx --test)
 make lint         # Biome lint(不修改)
@@ -38,7 +37,7 @@ make build        # 构建前端 + 后端产物
 - **`raw/` 只读是双层防御**:prompt 引导(第一道)+ `kbHooks` 的 tool_call 拦截(兜底):write/edit 拦 raw 写,read 拦非 md(提示用 pandoc 工具,ADR-0011)。
 - **pi agent 工具集不含 bash**(ADR-0003 D6 基线,ADR-0011 移除 bash):`tools: ["read","edit","write","grep","find","ls","pandoc"]`。非 md 源经 `pandoc` customTool(`makePandocTool`,spawn argv 不经 shell,无注入面)按需转文本;agent 不是通用 shell。
 - **文件工具路径锁 kb/ 内**(ADR-0016):pi 的 `resolveToCwd`->`resolvePath` 不 sandbox(接受绝对路径与 `../` 逃逸),agent 传 kb/ 外路径能跨目录读写。由 kbHooks `tool_call` 拦截(read/grep/find/ls 用 `isWithinKb` 读边界含 raw/;write/edit 用 `isWritablePath` 写边界非 raw/),pandoc 是 customTool 不经钩子,在 `makePandocTool.execute` 内拦。symlink 不处理(agent 无 bash 不能 `ln -s`)。
-- **pi skill 加载隔离**(ADR-0017):DefaultResourceLoader 传 `noSkills: true` + `additionalSkillPaths: [.pi/skills/health-check]`,不扫默认目录(避免 `~/.claude/skills/` 的 70+ Claude Code 开发技能灌进 agent system prompt 被误列成"可用工具")。后续新增 pi skill 须手动加 `additionalSkillPaths`。
+- **pi skill 加载隔离**(ADR-0017):DefaultResourceLoader 传 `noSkills: true` + `additionalSkillPaths: [.pi/skills/health-check]`,不扫默认目录(避免 `~/.Codex/skills/` 的 70+ Codex 开发技能灌进 agent system prompt 被误列成"可用工具")。后续新增 pi skill 须手动加 `additionalSkillPaths`。
 
 ## 代码风格
 
@@ -50,7 +49,7 @@ make build        # 构建前端 + 后端产物
 
 当前可能在 git worktree 下。所有命令在当前目录跑,**不要 `cd` 到主仓库**。git stash 与主仓库共享,不要用裸 `git stash`/`git stash pop`(可能 pop 其他 session 的改动)。
 
-`biome.json` 的 `files.includes` 已排除 `!**/.claude/worktrees`,避免 worktree 嵌套 `biome.json` 阻塞 `make lint`/`make format`。
+`biome.json` 的 `files.includes` 已排除 `!**/.Codex/worktrees`,避免 worktree 嵌套 `biome.json` 阻塞 `make lint`/`make format`。
 
 ## 开发工作流
 

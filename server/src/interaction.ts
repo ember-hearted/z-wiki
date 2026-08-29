@@ -4,6 +4,7 @@
 
 import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
+import os from 'node:os'
 import path from 'node:path'
 import type { Api, Model } from '@earendil-works/pi-ai'
 import type { AgentSession } from '@earendil-works/pi-coding-agent'
@@ -33,6 +34,7 @@ import {
   writeConfig,
 } from './config.js'
 import { ConfigReloadError, reloadLlmConfig } from './configReload.js'
+import { listDirectory, validateDirName, validateDirPath } from './dirPicker.js'
 import { hasIndexChanged } from './hasIndexChanged.js'
 import { appendIngestLogIfUntouched, snapshotLogMtime } from './ingestLogFallback.js'
 import { classifyMilestone } from './ingestProgress.js'
@@ -455,6 +457,49 @@ export async function createInteraction(
   app.get('/api/specs', async () => {
     const cfg = readConfig(configPath)
     return { specs: API_SPECS, exposed: cfg.exposedApiSpecs ?? [] }
+  })
+
+  // ── 目录浏览端点(webui 选 vault 父目录,票据 01/04)─────────────────
+  // 与桌面原生选择器一致:允许浏览整个文件系统(不裁剪 root)。危险点在"怎么当真 wire 值":
+  // 绝不 path.resolve(会解析到 server cwd),只接受绝对路径;含 .. 段拒绝。
+  // 只绑 loopback 是安全边界;此端点本身只做"只读枚举 + 单段建目录"的窄操作。
+
+  // 列出目录(只目录、按名排序、点前缀 hidden、maxEntries 截断)。path 缺省 -> 用户 home。
+  app.get('/api/dir', async (req, reply) => {
+    const q = (req.query as { path?: unknown }).path
+    const vp = validateDirPath(q)
+    if ('error' in vp) return reply.code(400).send({ error: vp.error })
+    const abs = vp.path || os.homedir()
+    try {
+      const listing = await listDirectory(abs)
+      return reply.send(listing)
+    } catch (err) {
+      return reply.code(400).send({
+        error: `目录不可读:${abs}(${err instanceof Error ? err.message : String(err)})`,
+      })
+    }
+  })
+
+  // 新建单个目录(非递归)。name 必须单一非空段。EEXIST->409,其他->500。
+  app.post('/api/dir', async (req, reply) => {
+    const body = (req.body ?? {}) as { path?: unknown; name?: unknown }
+    const vp = validateDirPath(body.path)
+    if ('error' in vp) return reply.code(400).send({ error: vp.error })
+    const vn = validateDirName(body.name)
+    if ('error' in vn) return reply.code(400).send({ error: vn.error })
+    if (!vp.path) return reply.code(400).send({ error: '需提供 path(绝对路径)' })
+    const target = path.join(vp.path, vn.name)
+    try {
+      await fs.mkdir(target) // 非递归:父目录必须已存在
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code
+      if (code === 'EEXIST') return reply.code(409).send({ error: `目录已存在:${target}` })
+      return reply.code(500).send({
+        error: `建目录失败:${target}(${err instanceof Error ? err.message : String(err)})`,
+      })
+    }
+    req.log.info({ target }, 'dir created')
+    return reply.send({ path: target })
   })
 
   // 新建空 Vault:从 kb_example 复制到指定路径(或 appRoot 下派生路径)→ 加入 config.vaults。

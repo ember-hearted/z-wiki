@@ -1,16 +1,17 @@
-// index.ts — 薄入口:导出 createServer() 供桌面形态嵌入;start() 为 dev/CLI 入口。
+// index.ts — 薄入口:导出 createServer() 供桌面形态嵌入;startServer() 为 dev/CLI/发布包入口。
 // Interaction 主体在 interaction.ts,可脱离 server 启动单测 import。
 // dev 形态:config.json 放项目根(由 buildAgentContext 从 appRoot 推导读取,ADR-0003 D3.1)。
+import { cpSync, existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { realpathSync } from 'node:fs'
-import { buildAgentContext, type AgentContextOptions } from './agentHost.js'
+import { type AgentContextOptions, buildAgentContext } from './agentHost.js'
 import {
-  createInteraction,
   type CreateInteractionOptions,
+  createInteraction,
   type Interaction,
 } from './interaction.js'
 import { kbRoot } from './kbLayout.js'
+import { openBrowser } from './openBrowser.js'
 import { ensurePandoc } from './pandocManager.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -18,6 +19,55 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(__dirname, '../..')
 const PORT = Number(process.env.PORT ?? 3000)
 const HOST = process.env.HOST ?? '127.0.0.1'
+
+/** 是否自动开浏览器:ZWIKI_OPEN_BROWSER 未设或 '1' 即开;'0'/'off' 关闭。 */
+export function shouldOpenBrowser(env: Record<string, string | undefined>): boolean {
+  const v = env.ZWIKI_OPEN_BROWSER
+  return v === undefined || v === '1'
+}
+
+/**
+ * 桌面 app 的 UserDataDir(复刻 Electron `app.getPath('userData')` 在 app 名 'z-wiki' 下的跨平台映射,
+ * 无 Electron 依赖,供 webui 探测桌面已有数据根)。Win=%APPDATA%\z-wiki;mac=~/Library/Application
+ * Support/z-wiki;linux=~/.config/z-wiki。缺对应环境变量则返回空串(视为无桌面目录)。
+ */
+export function desktopUserDataDir(
+  platform: NodeJS.Platform,
+  env: Record<string, string | undefined>,
+): string {
+  switch (platform) {
+    case 'win32':
+      return env.APPDATA ? path.join(env.APPDATA, 'z-wiki') : ''
+    case 'darwin':
+      return env.HOME ? path.join(env.HOME, 'Library', 'Application Support', 'z-wiki') : ''
+    case 'linux':
+      return env.HOME ? path.join(env.HOME, '.config', 'z-wiki') : ''
+    default:
+      return ''
+  }
+}
+
+/**
+ * webui 数据根(ZWIKI_HOME,ADR 票据 03):决定 config.json/models.json/sessions/kbRoot 的落点。
+ * 优先级:
+ * 1. `ZWIKI_HOME` 显式设置(非空) → 用它。
+ * 2. 否则自动探测桌面 UserDataDir(`desktopUserDataDir`),若其存在 → 用它(开箱即用桌面已有知识库)。
+ * 3. 否则回退 fallbackDataRoot(默认为 projectRoot:dev 形态沿用项目根,发布包可传用户可写目录)。
+ * exists 是路径存在性谓词(默认 existsSync),注入以便单测。
+ */
+export function dataRootFor(
+  env: Record<string, string | undefined>,
+  platform: NodeJS.Platform,
+  projectRoot: string,
+  exists: (p: string) => boolean = existsSync,
+  fallbackDataRoot: string = projectRoot,
+): string {
+  const explicit = env.ZWIKI_HOME?.trim()
+  if (explicit) return explicit
+  const desktopDir = desktopUserDataDir(platform, env)
+  if (desktopDir && exists(desktopDir)) return desktopDir
+  return fallbackDataRoot
+}
 
 export type { AgentContextOptions } from './agentHost.js'
 
@@ -53,11 +103,40 @@ export async function createServer(opts: CreateServerOptions): Promise<Interacti
   return interaction
 }
 
-/** dev/CLI 入口:用默认 PROJECT_ROOT 推导路径,listen。 */
-async function start(): Promise<void> {
+export interface ServerStartOptions {
+  /** 项目/包根:决定 web/dist、kb_example 的相对落点;缺省从模块位置推导(dev=仓库根,包=包安装根)。 */
+  projectRoot?: string
+  /** 数据根兜底:未设 ZWIKI_HOME 且无桌面数据目录时使用;发布包传用户可写目录(如 ~/.z-wiki),避免包安装目录可能只读。 */
+  defaultDataRoot?: string
+}
+
+/**
+ * 首跑引导:若默认库 kb/ 不存在且给了样板目录,从样板整目录复制初始化。
+ * 返回是否执行了引导(bootstrap)。纯 fs 操作,便于单测。
+ */
+export function ensureKbBootstrapped(kb: string, example: string): boolean {
+  if (existsSync(kb)) return false
+  if (!existsSync(example)) return false
+  cpSync(example, kb, { recursive: true })
+  return true
+}
+
+/**
+ * dev/CLI/发布包入口:用 projectRoot(缺省从模块位置推导)推导路径,listen。
+ * 供发布包 CLI 复用;首跑缺 kb/ 且带 kb_example/ 时自动引导初始化。
+ */
+export async function startServer(opts: ServerStartOptions = {}): Promise<void> {
   try {
-    // 确保 pandoc 可用(ADR-0007 决策 3):开发形态按需下载到 .pi/agent/bin。失败 warn 不阻塞。
-    const agentDir = path.join(PROJECT_ROOT, '.pi/agent')
+    const projectRoot = opts.projectRoot ?? PROJECT_ROOT
+    // webui 数据根(ZWIKI_HOME,缺省自动探测桌面 UserDataDir):config/models/sessions/kb 都从它派生。
+    const dataRoot = dataRootFor(
+      process.env,
+      process.platform,
+      projectRoot,
+      existsSync,
+      opts.defaultDataRoot,
+    )
+    const agentDir = path.join(dataRoot, '.pi/agent')
     try {
       await ensurePandoc(agentDir)
     } catch (err) {
@@ -66,10 +145,17 @@ async function start(): Promise<void> {
         err instanceof Error ? err.message : err,
       )
     }
+    const kbExamplePath = path.join(projectRoot, 'kb_example')
+    // 首跑引导:dataRoot 下缺 kb/ 且包内带 kb_example/ 时自动初始化(包用户第一次 npx z-wiki-web 也能起)。
+    const kbBase = kbRoot(dataRoot)
+    ensureKbBootstrapped(kbBase, kbExamplePath)
+    const webDistPath = path.join(projectRoot, 'web', 'dist')
+    const webDistExists = existsSync(webDistPath)
     const interaction = await createServer({
-      kbRoot: kbRoot(PROJECT_ROOT),
+      kbRoot: kbBase,
       agentDir,
-      kbExamplePath: path.join(PROJECT_ROOT, 'kb_example'),
+      ...(existsSync(kbExamplePath) ? { kbExamplePath } : {}),
+      ...(webDistExists ? { webDistPath } : {}),
     })
 
     // graceful shutdown:进程收到退出信号(Ctrl+C / app 退出)时,
@@ -87,6 +173,9 @@ async function start(): Promise<void> {
 
     await interaction.app.listen({ port: PORT, host: HOST })
     interaction.log.info(`z-wiki server on http://${HOST}:${PORT}`)
+    if (shouldOpenBrowser(process.env)) {
+      void openBrowser(`http://${HOST}:${PORT}/`)
+    }
   } catch (err) {
     console.error(err)
     process.exit(1)
@@ -102,4 +191,4 @@ function isMainEntry(): boolean {
     return false
   }
 }
-if (isMainEntry()) void start()
+if (isMainEntry()) void startServer()
