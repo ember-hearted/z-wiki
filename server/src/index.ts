@@ -3,7 +3,7 @@
 // dev 形态:config.json 放项目根(由 buildAgentContext 从 appRoot 推导读取,ADR-0003 D3.1)。
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { realpathSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { buildAgentContext, type AgentContextOptions } from './agentHost.js'
 import {
   createInteraction,
@@ -12,12 +12,19 @@ import {
 } from './interaction.js'
 import { kbRoot } from './kbLayout.js'
 import { ensurePandoc } from './pandocManager.js'
+import { openBrowser } from './openBrowser.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // dev/CLI 默认路径:从模块位置推导项目根(代码与数据同目录的开发形态)。
 const PROJECT_ROOT = path.resolve(__dirname, '../..')
 const PORT = Number(process.env.PORT ?? 3000)
 const HOST = process.env.HOST ?? '127.0.0.1'
+
+/** 是否自动开浏览器:ZWIKI_OPEN_BROWSER 未设或 '1' 即开;'0'/'off' 关闭。 */
+export function shouldOpenBrowser(env: Record<string, string | undefined>): boolean {
+  const v = env.ZWIKI_OPEN_BROWSER
+  return v === undefined || v === '1'
+}
 
 export type { AgentContextOptions } from './agentHost.js'
 
@@ -66,10 +73,14 @@ async function start(): Promise<void> {
         err instanceof Error ? err.message : err,
       )
     }
+    // 在 start() 内,db configPath 是 PROJECT_ROOT(已有)。webui 形态:存在 web/dist 则同端口 serve。
+    const webDistPath = path.join(PROJECT_ROOT, 'web', 'dist')
+    const webDistExists = existsSync(webDistPath)
     const interaction = await createServer({
       kbRoot: kbRoot(PROJECT_ROOT),
       agentDir,
       kbExamplePath: path.join(PROJECT_ROOT, 'kb_example'),
+      ...(webDistExists ? { webDistPath } : {}),
     })
 
     // graceful shutdown:进程收到退出信号(Ctrl+C / app 退出)时,
@@ -87,6 +98,9 @@ async function start(): Promise<void> {
 
     await interaction.app.listen({ port: PORT, host: HOST })
     interaction.log.info(`z-wiki server on http://${HOST}:${PORT}`)
+    if (shouldOpenBrowser(process.env)) {
+      void openBrowser(`http://${HOST}:${PORT}/`)
+    }
   } catch (err) {
     console.error(err)
     process.exit(1)
