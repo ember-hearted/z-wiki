@@ -31,3 +31,9 @@ desktop/build/*.png
 
 # Claude Code 个人本地配置(不提交)
 .claude/settings.local.json
+
+# webui npm 发布包(pkg/):dist/web/kb_example 由 assemble.mjs 从 build 产物汇入;*.tgz 是 npm pack 产物
+/pkg/dist/
+/pkg/web/
+/pkg/kb_example/
+/pkg/*.tgz
