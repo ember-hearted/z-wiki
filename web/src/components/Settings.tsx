@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { onIngestState } from '../hooks/chatEvents'
-import DirPicker from './DirPicker.tsx'
+import DirPicker from './DirPicker'
 import Select from './Select'
 
 /* ═══════════════════════════════════════════════════

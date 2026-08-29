@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { buildDirUrl, type DirListing, decodeDir, filterHidden } from './dirPicker.js'
+import { buildDirUrl, type DirListing, decodeDir, filterHidden } from './dirApi.js'
 
 export interface DirPickerProps {
   open: boolean

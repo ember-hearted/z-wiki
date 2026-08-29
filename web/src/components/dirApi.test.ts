@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { buildDirUrl, decodeDir, filterHidden, type DirListing, type DirEntry } from './dirPicker.js'
+import { buildDirUrl, type DirEntry, type DirListing, decodeDir, filterHidden } from './dirApi.js'
 
 test('buildDirUrl: 有 path 则拼 query', () => {
   assert.equal(buildDirUrl('/a/b'), '/api/dir?path=%2Fa%2Fb')
