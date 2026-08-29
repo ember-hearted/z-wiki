@@ -73,7 +73,7 @@ async function start(): Promise<void> {
         err instanceof Error ? err.message : err,
       )
     }
-    // 在 start() 内,db configPath 是 PROJECT_ROOT(已有)。webui 形态:存在 web/dist 则同端口 serve。
+    // 在 start() 内,webui 形态:存在 web/dist 则同端口 serve。
     const webDistPath = path.join(PROJECT_ROOT, 'web', 'dist')
     const webDistExists = existsSync(webDistPath)
     const interaction = await createServer({
