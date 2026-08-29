@@ -633,6 +633,7 @@ export default function Settings() {
             setNewVaultParent(p)
             setDirPickerOpen(false)
           }}
+          initialPath={currentVaultParent}
         />
       </div>
     </div>

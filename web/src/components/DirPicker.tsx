@@ -11,11 +11,13 @@ export interface DirPickerProps {
   open: boolean
   onClose: () => void
   onSelect: (parentPath: string) => void
+  /** 打开时的初始浏览路径(可选)。缺省走 server 缺省 home;传当前 vault 父目录则可追随当前仓库。 */
+  initialPath?: string
 }
 
 /** 应用内目录树对话框(webui 浏览/新建本地目录,替代 window.desktop.selectVaultPath)。
  *  数据源于 GET /api/dir;新建走 POST /api/dir;选目录 = 父目录(喂 POST /api/vault {name,parentPath})。 */
-export default function DirPicker({ open, onClose, onSelect }: DirPickerProps) {
+export default function DirPicker({ open, onClose, onSelect, initialPath }: DirPickerProps) {
   const [listing, setListing] = useState<DirListing | null>(null)
   const [showHidden, setShowHidden] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,9 +46,9 @@ export default function DirPicker({ open, onClose, onSelect }: DirPickerProps) {
     if (open) {
       setListing(null)
       setLocationInput('')
-      void load('')
+      void load(initialPath ?? '')
     }
-  }, [open, load])
+  }, [open, initialPath, load])
 
   if (!open) return null
 
