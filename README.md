@@ -97,6 +97,8 @@ npm test         # server + desktop + web 测试
 make package     # 打包(默认当前平台;TARGETS="--mac --win --linux" 交叉打包)
 ```
 
+浏览器形态默认把数据(config.json / kb/ / .pi/)放在项目根;设 `ZWIKI_HOME=<目录>` 可把整个数据根指向别处(如设为桌面 app 的 UserDataDir 即与桌面共用同一份数据)。
+
 拉取 rg/fd/pandoc 二进制(开发期):`tsx scripts/fetch-tool-bins.ts --all`。
 bump 版本:`npm run bump <patch|minor|major|x.y.z>`(同步 4 个 package.json)。
 

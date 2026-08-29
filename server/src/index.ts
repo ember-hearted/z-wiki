@@ -26,6 +26,16 @@ export function shouldOpenBrowser(env: Record<string, string | undefined>): bool
   return v === undefined || v === '1'
 }
 
+/**
+ * webui 数据根(ZWIKI_HOME,ADR 票据 03):决定 config.json/models.json/sessions/kbRoot 的落点。
+ * 缺省回退 projectRoot(dev 形态,保持现状);显式设置时整个数据根指向该目录,
+ * 设成桌面 UserDataDir 即与桌面共享同一份数据(config + agent + kb)。空串视为未设(回退 projectRoot)。
+ */
+export function dataRootFor(env: Record<string, string | undefined>, projectRoot: string): string {
+  const v = env.ZWIKI_HOME
+  return v?.trim() ? v : projectRoot
+}
+
 export type { AgentContextOptions } from './agentHost.js'
 
 /**
@@ -63,8 +73,12 @@ export async function createServer(opts: CreateServerOptions): Promise<Interacti
 /** dev/CLI 入口:用默认 PROJECT_ROOT 推导路径,listen。 */
 async function start(): Promise<void> {
   try {
+    // webui 数据根(ZWIKI_HOME,缺省项目根):config/models/sessions/kb 都从它派生。
+    // 设成桌面 UserDataDir 即与桌面共享同一份数据(票据 03)。
+    const dataRoot = dataRootFor(process.env, PROJECT_ROOT)
     // 确保 pandoc 可用(ADR-0007 决策 3):开发形态按需下载到 .pi/agent/bin。失败 warn 不阻塞。
-    const agentDir = path.join(PROJECT_ROOT, '.pi/agent')
+    // agentDir 落 dataRoot(而非 PROJECT_ROOT),使 models/sessions/bin 与 desktop 对齐。
+    const agentDir = path.join(dataRoot, '.pi/agent')
     try {
       await ensurePandoc(agentDir)
     } catch (err) {
@@ -77,7 +91,8 @@ async function start(): Promise<void> {
     const webDistPath = path.join(PROJECT_ROOT, 'web', 'dist')
     const webDistExists = existsSync(webDistPath)
     const interaction = await createServer({
-      kbRoot: kbRoot(PROJECT_ROOT),
+      // 默认库 kb/ 落 dataRoot(与 desktop 的 kbRootFor 对齐);kb_example 模板仍随项目根。
+      kbRoot: kbRoot(dataRoot),
       agentDir,
       kbExamplePath: path.join(PROJECT_ROOT, 'kb_example'),
       ...(webDistExists ? { webDistPath } : {}),
