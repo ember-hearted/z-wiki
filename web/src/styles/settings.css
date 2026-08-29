@@ -591,6 +591,15 @@
 }
 .dirpicker-crumb:hover { background: var(--accent-bg); }
 .dirpicker-current { color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dirpicker-location {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: stretch;
+}
+.dirpicker-location .settings-input {
+  flex: 1;
+  min-width: 0;
+}
 .dirpicker-toolbar {
   display: flex;
   align-items: center;
@@ -608,6 +617,22 @@
   flex: 1;
   min-height: 8rem;
   max-height: 16rem;
+  /* 项目滚动条规范(Firefox 侧):thin + border 色 thumb,透明 track */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.dirpicker-list::-webkit-scrollbar {
+  width: 5px;
+}
+.dirpicker-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dirpicker-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--r-pill);
+}
+.dirpicker-list::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-border);
 }
 .dirpicker-item {
   display: block;

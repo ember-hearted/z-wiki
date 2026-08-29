@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import { buildDirUrl, type DirListing, decodeDir, filterHidden } from './dirApi.js'
+import {
+  buildDirUrl,
+  type DirListing,
+  decodeDir,
+  filterHidden,
+  sanitizeLocationInput,
+} from './dirApi.js'
 
 export interface DirPickerProps {
   open: boolean
@@ -16,6 +22,7 @@ export default function DirPicker({ open, onClose, onSelect }: DirPickerProps) {
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [locationInput, setLocationInput] = useState('')
 
   const load = useCallback(async (path: string) => {
     setLoading(true)
@@ -36,6 +43,7 @@ export default function DirPicker({ open, onClose, onSelect }: DirPickerProps) {
   useEffect(() => {
     if (open) {
       setListing(null)
+      setLocationInput('')
       void load('')
     }
   }, [open, load])
@@ -45,6 +53,16 @@ export default function DirPicker({ open, onClose, onSelect }: DirPickerProps) {
   const entries = listing ? filterHidden(listing.entries, showHidden) : []
 
   const goTo = (p: string) => void load(p)
+
+  // 跳到任意绝对路径(跨盘/任意目录):sanitizeLocationInput 校验后 load。空/含 .. 则忽略。
+  const jumpTo = () => {
+    const target = sanitizeLocationInput(locationInput)
+    if (!target) {
+      setError('路径无效(需绝对路径,不含 ..)')
+      return
+    }
+    void load(target)
+  }
 
   const create = async () => {
     if (!listing || !newName.trim()) return
@@ -98,6 +116,25 @@ export default function DirPicker({ open, onClose, onSelect }: DirPickerProps) {
             </button>
           ))}
           {listing && <span className="dirpicker-current">{listing.path}</span>}
+        </div>
+        <div className="dirpicker-location">
+          <input
+            className="settings-input"
+            type="text"
+            placeholder="输入绝对路径跳转,如 D:\ 或 \\server\share"
+            value={locationInput}
+            onChange={(e) => setLocationInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                jumpTo()
+              }
+            }}
+            aria-label="路径跳转"
+          />
+          <button type="button" className="settings-btn" onClick={jumpTo}>
+            跳转
+          </button>
         </div>
         <div className="dirpicker-toolbar">
           <label className="settings-switch-label">

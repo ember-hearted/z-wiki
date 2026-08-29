@@ -30,3 +30,16 @@ export function decodeDir(json: unknown): DirResponse {
 export function filterHidden(entries: DirEntry[], showHidden: boolean): DirEntry[] {
   return showHidden ? entries : entries.filter((e) => !e.hidden)
 }
+
+/**
+ * 校验用户"跳转位置"输入(跨盘/任意路径):trim 后非空、无 `..` 段。
+ * 仅做前端基本 guard——是否真是可读目录/盘符根由 server 端 validateDirPath + listDirectory 判定。
+ * 返回 trim 后的路径供跳转;无效返回空串。盘符根(如 "D:\")或绝对路径均放行(无 `..` 段)。
+ */
+export function sanitizeLocationInput(raw: string): string {
+  const v = raw.trim()
+  if (!v) return ''
+  const segs = v.split(/[\\/]/).filter(Boolean)
+  if (segs.includes('..')) return ''
+  return v
+}

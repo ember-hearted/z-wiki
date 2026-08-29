@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { buildDirUrl, type DirEntry, type DirListing, decodeDir, filterHidden } from './dirApi.js'
+import {
+  buildDirUrl,
+  type DirEntry,
+  type DirListing,
+  decodeDir,
+  filterHidden,
+  sanitizeLocationInput,
+} from './dirApi.js'
 
 test('buildDirUrl: 有 path 则拼 query', () => {
   assert.equal(buildDirUrl('/a/b'), '/api/dir?path=%2Fa%2Fb')
@@ -41,4 +48,17 @@ test('filterHidden: showHidden=true 保留点前缀', () => {
   ]
   const out = filterHidden(entries, true)
   assert.equal(out.length, 2)
+})
+
+test('sanitizeLocationInput: 合法绝对路径/盘符根放行(trim)', () => {
+  assert.equal(sanitizeLocationInput('  D:\\  '), 'D:\\')
+  assert.equal(sanitizeLocationInput('/a/b'), '/a/b')
+  assert.equal(sanitizeLocationInput('C:\\Users'), 'C:\\Users')
+})
+test('sanitizeLocationInput: 空输入返回空串', () => {
+  assert.equal(sanitizeLocationInput(''), '')
+  assert.equal(sanitizeLocationInput('   '), '')
+})
+test('sanitizeLocationInput: 含 .. 段返回空串', () => {
+  assert.equal(sanitizeLocationInput('/a/../b'), '')
 })
