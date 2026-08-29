@@ -590,7 +590,14 @@
   border-radius: var(--r-sm);
 }
 .dirpicker-crumb:hover { background: var(--accent-bg); }
-.dirpicker-current { color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 当前面包屑段:不可点,弱化(与可点段区分);完整路径由下方跳转输入框承载。 */
+.dirpicker-crumb-current {
+  color: var(--text-faint);
+  cursor: default;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .dirpicker-location {
   display: flex;
   gap: var(--sp-2);
@@ -603,10 +610,19 @@
 .dirpicker-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--sp-2);
 }
-.dirpicker-hint { font-size: var(--fs-xs); color: var(--text-faint); }
+.dirpicker-toggle-label {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.dirpicker-hint {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  margin-left: auto;
+}
 .dirpicker-list {
   list-style: none;
   margin: 0;

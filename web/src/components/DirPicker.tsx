@@ -34,7 +34,11 @@ export default function DirPicker({ open, onClose, onSelect, initialPath }: DirP
       const json = (await res.json()) as unknown
       const d = decodeDir(json)
       if ('error' in d) setError(d.error)
-      else setListing(d.listing)
+      else {
+        setListing(d.listing)
+        // 预填路径输入框为当前浏览路径,供"显示当前路径 + 跳到别处"。不随用户编辑回写,只在加载时更新。
+        setLocationInput(d.listing.path)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -107,17 +111,27 @@ export default function DirPicker({ open, onClose, onSelect, initialPath }: DirP
         </div>
         {error && <div className="settings-error">{error}</div>}
         <div className="dirpicker-crumbs" role="navigation" aria-label="路径面包屑">
-          {listing?.crumbs.map((c) => (
-            <button
-              key={c.path}
-              type="button"
-              className="dirpicker-crumb"
-              onClick={() => goTo(c.path)}
-            >
-              {c.name}
-            </button>
-          ))}
-          {listing && <span className="dirpicker-current">{listing.path}</span>}
+          {listing?.crumbs.map((c, i) => {
+            const isLast = i === listing.crumbs.length - 1
+            return isLast ? (
+              <span
+                key={c.path}
+                className="dirpicker-crumb dirpicker-crumb-current"
+                aria-current="location"
+              >
+                {c.name}
+              </span>
+            ) : (
+              <button
+                key={c.path}
+                type="button"
+                className="dirpicker-crumb"
+                onClick={() => goTo(c.path)}
+              >
+                {c.name}
+              </button>
+            )
+          })}
         </div>
         <div className="dirpicker-location">
           <input
@@ -139,14 +153,17 @@ export default function DirPicker({ open, onClose, onSelect, initialPath }: DirP
           </button>
         </div>
         <div className="dirpicker-toolbar">
-          <label className="settings-switch-label">
-            <input
-              type="checkbox"
-              checked={showHidden}
-              onChange={(e) => setShowHidden(e.target.checked)}
-            />
-            显示隐藏
-          </label>
+          <button
+            type="button"
+            className="settings-switch"
+            role="switch"
+            aria-checked={showHidden}
+            aria-label="显示隐藏目录"
+            onClick={() => setShowHidden((s) => !s)}
+          >
+            <span className="settings-switch-knob" aria-hidden="true" />
+          </button>
+          <span className="dirpicker-toggle-label">显示隐藏</span>
           <span className="dirpicker-hint">选中的目录作为新建知识库的存放位置</span>
         </div>
         <ul className="dirpicker-list" role="listbox" aria-label="目录列表">
