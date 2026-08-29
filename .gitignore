@@ -37,3 +37,4 @@ desktop/build/*.png
 /pkg/web/
 /pkg/kb_example/
 /pkg/*.tgz
+/pkg/LICENSE
