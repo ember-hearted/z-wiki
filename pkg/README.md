@@ -10,13 +10,13 @@ z-wiki 的**浏览器形态(webui)**:本机跑一个 Fastify server,浏览器打
 ## 用法
 
 ```bash
-# 推荐:显式设数据目录,再一键启动
+# 一键启动(不用先装全局;数据目录建议显式设)
 export ZWIKI_HOME=~/.z-wiki        # PowerShell: $env:ZWIKI_HOME="$HOME\.z-wiki"
-npx z-wiki-web                     # 起 server 并自动开浏览器(http://127.0.0.1:3000)
+npx @ember-hearted/z-wiki          # 起 server 并自动开浏览器(http://127.0.0.1:3000)
 
 # 或全局安装后直接用
 npm i -g @ember-hearted/z-wiki
-z-wiki-web
+z-wiki                             # 别名 `z-wiki-web` 同效
 ```
 
 首次启动若数据目录下没有 `kb/`(知识库),会从包内 `kb_example/` 自动初始化。数据根按顺序落到:`ZWIKI_HOME`(若显式设置)→ 桌面版 UserDataDir(若装过桌面版)→ `~/.z-wiki`(默认用户可写目录)。

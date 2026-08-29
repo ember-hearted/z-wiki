@@ -1,11 +1,12 @@
 {
   "name": "@ember-hearted/z-wiki",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "z-wiki 浏览器形态(webui):本地单用户知识库,server + 浏览器使用,数据仍在本机。",
   "license": "MIT",
   "private": false,
   "type": "module",
   "bin": {
+    "z-wiki": "bin/z-wiki-web.js",
     "z-wiki-web": "bin/z-wiki-web.js"
   },
   "main": "dist/index.js",
