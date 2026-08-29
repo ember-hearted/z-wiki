@@ -11,7 +11,7 @@ const REPO_ROOT = path.resolve(PKG_ROOT, '..')
 // 需汇入的源(相对仓库根)。server/dist 与 web/dist 均为 build 产物(已 gitignore)。
 const SOURCES = [
   ['server/dist', 'dist'],
-  ['web/dist', 'web'],
+  ['web/dist', 'web/dist'],
   ['kb_example', 'kb_example'],
   ['LICENSE', 'LICENSE'],
 ]
