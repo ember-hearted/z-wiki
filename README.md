@@ -91,6 +91,7 @@ Windows 10 2004 以下(如 1809)上,Electron 的 GPU / 沙箱兼容差,app 会�
 
 ```bash
 make run         # 构建并启动 desktop(Electron)
+make run-web     # 浏览器形态:构建 web + 起 server + 自动开浏览器(无 Electron)
 make typecheck   # 全量类型检查
 npm test         # server + desktop + web 测试
 make package     # 打包(默认当前平台;TARGETS="--mac --win --linux" 交叉打包)
