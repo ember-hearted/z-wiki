@@ -81,6 +81,16 @@ test('dataRootFor: 空串 ZWIKI_HOME 视为未设,走探测', () => {
   )
 })
 
+test('dataRootFor: 无 ZWIKI_HOME/无桌面目录时用 fallbackDataRoot', () => {
+  const r = dataRootFor({}, 'linux', '/proj', () => false, '/home/u/.z-wiki')
+  assert.equal(r, '/home/u/.z-wiki')
+})
+
+test('dataRootFor: 缺省 fallback 为 projectRoot(dev 行为不变)', () => {
+  const r = dataRootFor({}, 'linux', '/proj', () => false)
+  assert.equal(r, '/proj')
+})
+
 // ── ensureKbBootstrapped:首跑 kb/ 引导(缺 kb/ 且带 kb_example/ 时自动初始化)──
 test('ensureKbBootstrapped: kb 缺失且有样板则复制初始化并返回 true', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'z-wiki-boot-'))

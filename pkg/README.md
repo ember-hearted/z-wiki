@@ -19,7 +19,7 @@ npm i -g @ember-hearted/z-wiki
 z-wiki-web
 ```
 
-首次启动若数据目录下没有 `kb/`(知识库),会从包内 `kb_example/` 自动初始化。未设 `ZWIKI_HOME` 时,数据根按顺序落到:`ZWIKI_HOME` → 桌面版 UserDataDir(若装过桌面版) → 包安装目录。
+首次启动若数据目录下没有 `kb/`(知识库),会从包内 `kb_example/` 自动初始化。数据根按顺序落到:`ZWIKI_HOME`(若显式设置)→ 桌面版 UserDataDir(若装过桌面版)→ `~/.z-wiki`(默认用户可写目录)。
 
 ## 环境变量
 

@@ -52,7 +52,7 @@ export function desktopUserDataDir(
  * 优先级:
  * 1. `ZWIKI_HOME` 显式设置(非空) → 用它。
  * 2. 否则自动探测桌面 UserDataDir(`desktopUserDataDir`),若其存在 → 用它(开箱即用桌面已有知识库)。
- * 3. 否则回退 projectRoot(dev 形态)。
+ * 3. 否则回退 fallbackDataRoot(默认为 projectRoot:dev 形态沿用项目根,发布包可传用户可写目录)。
  * exists 是路径存在性谓词(默认 existsSync),注入以便单测。
  */
 export function dataRootFor(
@@ -60,12 +60,13 @@ export function dataRootFor(
   platform: NodeJS.Platform,
   projectRoot: string,
   exists: (p: string) => boolean = existsSync,
+  fallbackDataRoot: string = projectRoot,
 ): string {
   const explicit = env.ZWIKI_HOME?.trim()
   if (explicit) return explicit
   const desktopDir = desktopUserDataDir(platform, env)
   if (desktopDir && exists(desktopDir)) return desktopDir
-  return projectRoot
+  return fallbackDataRoot
 }
 
 export type { AgentContextOptions } from './agentHost.js'
@@ -105,6 +106,8 @@ export async function createServer(opts: CreateServerOptions): Promise<Interacti
 export interface ServerStartOptions {
   /** 项目/包根:决定 web/dist、kb_example 的相对落点;缺省从模块位置推导(dev=仓库根,包=包安装根)。 */
   projectRoot?: string
+  /** 数据根兜底:未设 ZWIKI_HOME 且无桌面数据目录时使用;发布包传用户可写目录(如 ~/.z-wiki),避免包安装目录可能只读。 */
+  defaultDataRoot?: string
 }
 
 /**
@@ -126,7 +129,13 @@ export async function startServer(opts: ServerStartOptions = {}): Promise<void> 
   try {
     const projectRoot = opts.projectRoot ?? PROJECT_ROOT
     // webui 数据根(ZWIKI_HOME,缺省自动探测桌面 UserDataDir):config/models/sessions/kb 都从它派生。
-    const dataRoot = dataRootFor(process.env, process.platform, projectRoot)
+    const dataRoot = dataRootFor(
+      process.env,
+      process.platform,
+      projectRoot,
+      existsSync,
+      opts.defaultDataRoot,
+    )
     const agentDir = path.join(dataRoot, '.pi/agent')
     try {
       await ensurePandoc(agentDir)
