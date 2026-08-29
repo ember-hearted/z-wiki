@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
-import { dataRootFor, desktopUserDataDir, shouldOpenBrowser } from './index.js'
+import {
+  dataRootFor,
+  desktopUserDataDir,
+  ensureKbBootstrapped,
+  shouldOpenBrowser,
+} from './index.js'
 
 // 跨平台断言:用 path.join 构建期望路径,避免 Windows(\ ) / POSIX(/ ) 分隔符差异。
 const join = path.join
@@ -72,4 +79,48 @@ test('dataRootFor: 空串 ZWIKI_HOME 视为未设,走探测', () => {
     dataRootFor({ ZWIKI_HOME: '', HOME: '/home/u' }, 'linux', '/proj', exists),
     desktopLinux,
   )
+})
+
+// ── ensureKbBootstrapped:首跑 kb/ 引导(缺 kb/ 且带 kb_example/ 时自动初始化)──
+test('ensureKbBootstrapped: kb 缺失且有样板则复制初始化并返回 true', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'z-wiki-boot-'))
+  try {
+    const example = path.join(root, 'kb_example')
+    const kb = path.join(root, 'kb')
+    mkdirSync(example)
+    writeFileSync(path.join(example, 'index.md'), '# 知识库\n')
+    mkdirSync(path.join(example, 'wiki'))
+    const did = ensureKbBootstrapped(kb, example)
+    assert.equal(did, true)
+    assert.equal(existsSync(path.join(kb, 'index.md')), true)
+    assert.equal(existsSync(path.join(kb, 'wiki')), true)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('ensureKbBootstrapped: kb 已存在则不动并返回 false', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'z-wiki-boot-'))
+  try {
+    const example = path.join(root, 'kb_example')
+    const kb = path.join(root, 'kb')
+    mkdirSync(example)
+    mkdirSync(kb)
+    const did = ensureKbBootstrapped(kb, example)
+    assert.equal(did, false)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('ensureKbBootstrapped: 样板缺失则不动并返回 false', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'z-wiki-boot-'))
+  try {
+    const kb = path.join(root, 'kb')
+    const did = ensureKbBootstrapped(kb, path.join(root, 'nope'))
+    assert.equal(did, false)
+    assert.equal(existsSync(kb), false)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
 })

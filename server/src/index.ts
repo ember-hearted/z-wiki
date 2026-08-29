@@ -1,7 +1,7 @@
-// index.ts — 薄入口:导出 createServer() 供桌面形态嵌入;start() 为 dev/CLI 入口。
+// index.ts — 薄入口:导出 createServer() 供桌面形态嵌入;startServer() 为 dev/CLI/发布包入口。
 // Interaction 主体在 interaction.ts,可脱离 server 启动单测 import。
 // dev 形态:config.json 放项目根(由 buildAgentContext 从 appRoot 推导读取,ADR-0003 D3.1)。
-import { existsSync, realpathSync } from 'node:fs'
+import { cpSync, existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { type AgentContextOptions, buildAgentContext } from './agentHost.js'
@@ -102,14 +102,31 @@ export async function createServer(opts: CreateServerOptions): Promise<Interacti
   return interaction
 }
 
-/** dev/CLI 入口:用默认 PROJECT_ROOT 推导路径,listen。 */
-async function start(): Promise<void> {
+export interface ServerStartOptions {
+  /** 项目/包根:决定 web/dist、kb_example 的相对落点;缺省从模块位置推导(dev=仓库根,包=包安装根)。 */
+  projectRoot?: string
+}
+
+/**
+ * 首跑引导:若默认库 kb/ 不存在且给了样板目录,从样板整目录复制初始化。
+ * 返回是否执行了引导(bootstrap)。纯 fs 操作,便于单测。
+ */
+export function ensureKbBootstrapped(kb: string, example: string): boolean {
+  if (existsSync(kb)) return false
+  if (!existsSync(example)) return false
+  cpSync(example, kb, { recursive: true })
+  return true
+}
+
+/**
+ * dev/CLI/发布包入口:用 projectRoot(缺省从模块位置推导)推导路径,listen。
+ * 供发布包 CLI 复用;首跑缺 kb/ 且带 kb_example/ 时自动引导初始化。
+ */
+export async function startServer(opts: ServerStartOptions = {}): Promise<void> {
   try {
+    const projectRoot = opts.projectRoot ?? PROJECT_ROOT
     // webui 数据根(ZWIKI_HOME,缺省自动探测桌面 UserDataDir):config/models/sessions/kb 都从它派生。
-    // 设 ZWIKI_HOME 显式覆盖;否则桌面数据根存在则用桌面(开箱即用已有知识库),不存在回退项目根。
-    const dataRoot = dataRootFor(process.env, process.platform, PROJECT_ROOT)
-    // 确保 pandoc 可用(ADR-0007 决策 3):开发形态按需下载到 .pi/agent/bin。失败 warn 不阻塞。
-    // agentDir 落 dataRoot(而非 PROJECT_ROOT),使 models/sessions/bin 与 desktop 对齐。
+    const dataRoot = dataRootFor(process.env, process.platform, projectRoot)
     const agentDir = path.join(dataRoot, '.pi/agent')
     try {
       await ensurePandoc(agentDir)
@@ -119,14 +136,16 @@ async function start(): Promise<void> {
         err instanceof Error ? err.message : err,
       )
     }
-    // 在 start() 内,webui 形态:存在 web/dist 则同端口 serve。
-    const webDistPath = path.join(PROJECT_ROOT, 'web', 'dist')
+    const kbExamplePath = path.join(projectRoot, 'kb_example')
+    // 首跑引导:dataRoot 下缺 kb/ 且包内带 kb_example/ 时自动初始化(包用户第一次 npx z-wiki-web 也能起)。
+    const kbBase = kbRoot(dataRoot)
+    ensureKbBootstrapped(kbBase, kbExamplePath)
+    const webDistPath = path.join(projectRoot, 'web', 'dist')
     const webDistExists = existsSync(webDistPath)
     const interaction = await createServer({
-      // 默认库 kb/ 落 dataRoot(与 desktop 的 kbRootFor 对齐);kb_example 模板仍随项目根。
-      kbRoot: kbRoot(dataRoot),
+      kbRoot: kbBase,
       agentDir,
-      kbExamplePath: path.join(PROJECT_ROOT, 'kb_example'),
+      ...(existsSync(kbExamplePath) ? { kbExamplePath } : {}),
       ...(webDistExists ? { webDistPath } : {}),
     })
 
@@ -163,4 +182,4 @@ function isMainEntry(): boolean {
     return false
   }
 }
-if (isMainEntry()) void start()
+if (isMainEntry()) void startServer()
