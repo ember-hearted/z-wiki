@@ -85,6 +85,26 @@ Windows 10 2004 以下(如 1809)上,Electron 的 GPU / 沙箱兼容差,app 会�
 
 </details>
 
+## 浏览器形态(webui,无 Electron)
+
+z-wiki 也能**不装桌面 app、直接用浏览器**用——本机跑一个 server,浏览器打开 `http://127.0.0.1:3000`;数据仍在本机。同一套 server + web 内核被两种形态共享。已发布为 npm 公开包 **`@ember-hearted/z-wiki`**(只含 server + web 产物,不含 Electron;需 **Node.js ≥ 20**)。
+
+```bash
+# 一键启动(不用先装;数据目录建议显式设)
+export ZWIKI_HOME=~/.z-wiki        # PowerShell: $env:ZWIKI_HOME="$HOME\.z-wiki"
+npx @ember-hearted/z-wiki          # 起 server 并自动开浏览器(http://127.0.0.1:3000)
+
+# 或全局安装后直接用
+npm i -g @ember-hearted/z-wiki
+z-wiki-web                         # 别名 `z-wiki` 同效(自 0.5.2 起)
+```
+
+首次启动若数据目录下没有 `kb/`,会从包内 `kb_example/` 自动初始化。数据根优先级:`ZWIKI_HOME`(显式设置)→ 桌面版 UserDataDir(若装过桌面版则复用其同一份 config / kb / agent)→ `~/.z-wiki`(默认用户可写目录)。
+
+环境变量:`ZWIKI_HOME`(数据根)、`ZWIKI_OPEN_BROWSER`(`0`/`off` 关自动开浏览器,缺省开)、`PORT`(缺省 `3000`)、`HOST`(缺省 `127.0.0.1`,仅 loopback)。
+
+> 浏览器形态下 **pandoc 不预打包**,首次按需下载到 `ZWIKI_HOME/.pi/agent/bin`(下载失败则非 md 文档解析不可用、其余功能不受影响)。桌面版才预打 pandoc / rg / fd。开发期用 `make run-web` 跑同一形态(见下)。
+
 ## 开发
 
 见 [`CLAUDE.md`](CLAUDE.md)(架构契约 + 命令)、[`CONTEXT.md`](CONTEXT.md)(领域词汇)、[`docs/adr/`](docs/adr/)(决策记录)。
