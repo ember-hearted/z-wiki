@@ -23,8 +23,10 @@ export function openBrowser(url: string): Promise<boolean> {
     }
     const [cmd, ...args] = browserOpenCommand(process.platform, url)
     const child = spawn(cmd, args, { stdio: 'ignore', detached: true })
-    child.on('error', () => resolve(false))
-    child.unref()
-    resolve(true)
+    child.once('error', () => resolve(false))
+    child.once('spawn', () => {
+      child.unref()
+      resolve(true)
+    })
   })
 }
