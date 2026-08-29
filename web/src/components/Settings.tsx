@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import Select from './Select'
 import { onIngestState } from '../hooks/chatEvents'
+import DirPicker from './DirPicker.tsx'
+import Select from './Select'
 
 /* ═══════════════════════════════════════════════════
    Settings — 设置页:LLM 配置(api 规范/baseUrl/model/apiKey)+ Vault 切换/新建
@@ -51,6 +52,7 @@ export default function Settings() {
   const [savingShell, setSavingShell] = useState(false)
   const [newVaultName, setNewVaultName] = useState('')
   const [newVaultParent, setNewVaultParent] = useState('')
+  const [dirPickerOpen, setDirPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -545,7 +547,7 @@ export default function Settings() {
                 新建
               </button>
             </div>
-            {window.desktop && (
+            {window.desktop ? (
               <div className="new-vault-location">
                 <span>存放位置:</span>
                 <code className="vault-path">{newVaultParent || currentVaultParent || '默认'}</code>
@@ -553,6 +555,29 @@ export default function Settings() {
                   type="button"
                   className="settings-btn"
                   onClick={() => void selectVaultParent()}
+                  disabled={busy}
+                >
+                  {newVaultParent ? '更改' : '选择目录'}
+                </button>
+                {newVaultParent && (
+                  <button
+                    type="button"
+                    className="settings-btn"
+                    onClick={() => setNewVaultParent('')}
+                    disabled={busy}
+                  >
+                    清除
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="new-vault-location">
+                <span>存放位置:</span>
+                <code className="vault-path">{newVaultParent || currentVaultParent || '默认'}</code>
+                <button
+                  type="button"
+                  className="settings-btn"
+                  onClick={() => setDirPickerOpen(true)}
                   disabled={busy}
                 >
                   {newVaultParent ? '更改' : '选择目录'}
@@ -599,6 +624,16 @@ export default function Settings() {
             。
           </p>
         </section>
+
+        {/* ── 浏览器形态目录选择对话框(桌面保留原生 selectVaultParent)── */}
+        <DirPicker
+          open={dirPickerOpen}
+          onClose={() => setDirPickerOpen(false)}
+          onSelect={(p) => {
+            setNewVaultParent(p)
+            setDirPickerOpen(false)
+          }}
+        />
       </div>
     </div>
   )
