@@ -1,18 +1,18 @@
 // index.ts — 薄入口:导出 createServer() 供桌面形态嵌入;start() 为 dev/CLI 入口。
 // Interaction 主体在 interaction.ts,可脱离 server 启动单测 import。
 // dev 形态:config.json 放项目根(由 buildAgentContext 从 appRoot 推导读取,ADR-0003 D3.1)。
+import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { existsSync, realpathSync } from 'node:fs'
-import { buildAgentContext, type AgentContextOptions } from './agentHost.js'
+import { type AgentContextOptions, buildAgentContext } from './agentHost.js'
 import {
-  createInteraction,
   type CreateInteractionOptions,
+  createInteraction,
   type Interaction,
 } from './interaction.js'
 import { kbRoot } from './kbLayout.js'
-import { ensurePandoc } from './pandocManager.js'
 import { openBrowser } from './openBrowser.js'
+import { ensurePandoc } from './pandocManager.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // dev/CLI 默认路径:从模块位置推导项目根(代码与数据同目录的开发形态)。
@@ -27,13 +27,45 @@ export function shouldOpenBrowser(env: Record<string, string | undefined>): bool
 }
 
 /**
- * webui 数据根(ZWIKI_HOME,ADR 票据 03):决定 config.json/models.json/sessions/kbRoot 的落点。
- * 缺省回退 projectRoot(dev 形态,保持现状);显式设置时整个数据根指向该目录,
- * 设成桌面 UserDataDir 即与桌面共享同一份数据(config + agent + kb)。空串视为未设(回退 projectRoot)。
+ * 桌面 app 的 UserDataDir(复刻 Electron `app.getPath('userData')` 在 app 名 'z-wiki' 下的跨平台映射,
+ * 无 Electron 依赖,供 webui 探测桌面已有数据根)。Win=%APPDATA%\z-wiki;mac=~/Library/Application
+ * Support/z-wiki;linux=~/.config/z-wiki。缺对应环境变量则返回空串(视为无桌面目录)。
  */
-export function dataRootFor(env: Record<string, string | undefined>, projectRoot: string): string {
-  const v = env.ZWIKI_HOME
-  return v?.trim() ? v : projectRoot
+export function desktopUserDataDir(
+  platform: NodeJS.Platform,
+  env: Record<string, string | undefined>,
+): string {
+  switch (platform) {
+    case 'win32':
+      return env.APPDATA ? path.join(env.APPDATA, 'z-wiki') : ''
+    case 'darwin':
+      return env.HOME ? path.join(env.HOME, 'Library', 'Application Support', 'z-wiki') : ''
+    case 'linux':
+      return env.HOME ? path.join(env.HOME, '.config', 'z-wiki') : ''
+    default:
+      return ''
+  }
+}
+
+/**
+ * webui 数据根(ZWIKI_HOME,ADR 票据 03):决定 config.json/models.json/sessions/kbRoot 的落点。
+ * 优先级:
+ * 1. `ZWIKI_HOME` 显式设置(非空) → 用它。
+ * 2. 否则自动探测桌面 UserDataDir(`desktopUserDataDir`),若其存在 → 用它(开箱即用桌面已有知识库)。
+ * 3. 否则回退 projectRoot(dev 形态)。
+ * exists 是路径存在性谓词(默认 existsSync),注入以便单测。
+ */
+export function dataRootFor(
+  env: Record<string, string | undefined>,
+  platform: NodeJS.Platform,
+  projectRoot: string,
+  exists: (p: string) => boolean = existsSync,
+): string {
+  const explicit = env.ZWIKI_HOME?.trim()
+  if (explicit) return explicit
+  const desktopDir = desktopUserDataDir(platform, env)
+  if (desktopDir && exists(desktopDir)) return desktopDir
+  return projectRoot
 }
 
 export type { AgentContextOptions } from './agentHost.js'
@@ -73,9 +105,9 @@ export async function createServer(opts: CreateServerOptions): Promise<Interacti
 /** dev/CLI 入口:用默认 PROJECT_ROOT 推导路径,listen。 */
 async function start(): Promise<void> {
   try {
-    // webui 数据根(ZWIKI_HOME,缺省项目根):config/models/sessions/kb 都从它派生。
-    // 设成桌面 UserDataDir 即与桌面共享同一份数据(票据 03)。
-    const dataRoot = dataRootFor(process.env, PROJECT_ROOT)
+    // webui 数据根(ZWIKI_HOME,缺省自动探测桌面 UserDataDir):config/models/sessions/kb 都从它派生。
+    // 设 ZWIKI_HOME 显式覆盖;否则桌面数据根存在则用桌面(开箱即用已有知识库),不存在回退项目根。
+    const dataRoot = dataRootFor(process.env, process.platform, PROJECT_ROOT)
     // 确保 pandoc 可用(ADR-0007 决策 3):开发形态按需下载到 .pi/agent/bin。失败 warn 不阻塞。
     // agentDir 落 dataRoot(而非 PROJECT_ROOT),使 models/sessions/bin 与 desktop 对齐。
     const agentDir = path.join(dataRoot, '.pi/agent')
