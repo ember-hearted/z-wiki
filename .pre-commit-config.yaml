@@ -1,0 +1,11 @@
+# 提交门禁: 密钥扫描
+# 替换已删除的老 detect-secrets 全局模板钩子 (config.json 含 apiKey, 提交前扫描值得保留)。
+# 需要本机安装 gitleaks (my-init setup.sh 统一装到 ~/.local/bin)。
+repos:
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: gitleaks 密钥扫描
+        entry: gitleaks protect --verbose --redact --staged
+        language: system
+        pass_filenames: false
