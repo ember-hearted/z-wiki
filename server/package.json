@@ -35,7 +35,7 @@
     "@fastify/multipart": "^9.4.0",
     "@fastify/static": "^10.1.2",
     "@fastify/websocket": "^11.0.0",
-    "fastify": "^5.2.0",
+    "fastify": "^5.12.5",
     "typebox": "^1.1.38"
   },
   "devDependencies": {
